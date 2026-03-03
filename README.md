@@ -6,10 +6,10 @@ README ini fokus pada pengaturan lingkungan, dependensi konkret (sesuai `CMakeLi
 
 Ringkasan struktur penting
 
-- `CMakeLists.txt` — konfigurasi build utama. Menemukan SDL2, pkg-config dan GStreamer, lalu menambahkan subdirectory `lvgl/`.
+- `CMakeLists.txt` — konfigurasi build utama. Menemukan SDL2, pkg-config dan GStreamer, lalu menambahkan subdirectory `lib/lvgl/`.
 - `src/main.cpp` — entry point aplikasi.
 - `ui/` — sumber UI (generated or hand-written): `ui.c`, `ui.h`, `ui_events.cpp`.
-- `lvgl/` — sumber LVGL yang disertakan (library, header, utilitas). Periksa `lv_conf.h` untuk konfigurasi LVGL.
+- `lib/lvgl/` — sumber LVGL yang disertakan (library, header, utilitas). Periksa `lib/lvgl/lv_conf.h` atau `lib/lvgl/lv_conf_template.h` untuk konfigurasi LVGL.
 - `build/` — direktori build CMake (artefak hasil kompilasi).
 
 Dependensi utama (dipakai di CMakeLists.txt)
@@ -85,8 +85,8 @@ Catatan: jalankan dari direktori project root atau `build/` tergantung bagaimana
 
 Integrasi LVGL — hal-hal yang perlu diperhatikan
 
-- Konfigurasi LVGL: file `lv_conf.h` mengontrol banyak opsi LVGL (kira-kira di root atau di `lvgl/`). Jika Anda perlu menyesuaikan driver display, font, atau fitur, edit `lv_conf.h` sesuai dokumentasi LVGL.
-- `add_subdirectory(lvgl)` di `CMakeLists.txt` akan membangun LVGL sebagai target dan kemudian linked ke `lvglkamera`.
+- Konfigurasi LVGL: file `lv_conf.h` mengontrol banyak opsi LVGL (biasanya berada di `lib/lvgl/`). Jika Anda perlu menyesuaikan driver display, font, atau fitur, edit `lib/lvgl/lv_conf.h` atau `lib/lvgl/lv_conf_template.h` sesuai dokumentasi LVGL.
+- `add_subdirectory(lib/lvgl)` di `CMakeLists.txt` akan membangun LVGL sebagai target dan kemudian linked ke `lvglkamera`.
 - UI: folder `ui/` berisi sumber antarmuka. `CMakeLists.txt` sudah mengambil `ui/*.c` & `ui/*.cpp` ke dalam target.
 
 Menambahkan dukungan platform/driver baru
@@ -112,7 +112,7 @@ Contributing
 
 Lisensi
 
-Periksa `lvgl/LICENCE.txt` dan file lisensi lain yang menyertai pustaka untuk informasi lisensi lengkap.
+Periksa `lib/lvgl/LICENCE.txt` dan file lisensi lain yang menyertai pustaka untuk informasi lisensi lengkap.
 
 ---
 

@@ -1,0 +1,6 @@
+lib/lvgl/CMakeFiles/lvgl.dir/src/draw/nanovg/lv_draw_nanovg_3d.c.o: \
+ /home/farhan/lvgl_test/lib/lvgl/src/draw/nanovg/lv_draw_nanovg_3d.c \
+ /usr/include/stdc-predef.h \
+ /home/farhan/lvgl_test/lib/lvgl/src/draw/nanovg/lv_draw_nanovg_private.h \
+ /home/farhan/lvgl_test/lib/lvgl/src/draw/nanovg/../../lv_conf_internal.h \
+ /home/farhan/lvgl_test/lv_conf.h

@@ -5,13 +5,13 @@
 # compile CXX with /usr/bin/g++
 C_DEFINES = -DLV_CONF_INCLUDE_SIMPLE -DLV_KCONFIG_IGNORE -DLV_LVGL_H_INCLUDE_SIMPLE
 
-C_INCLUDES = -I/usr/include/gstreamer-1.0 -I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include -I/home/farhan/lvgl_test/ui -isystem /usr/include/SDL2 -isystem /home/farhan/lvgl_test -isystem /home/farhan/lvgl_test/lvgl -isystem /home/farhan/lvgl_test/build/lvgl -isystem /home/farhan/lvgl_test/lvgl/examples -isystem /home/farhan/lvgl_test/lvgl/demos
+C_INCLUDES = -I/usr/include/gstreamer-1.0 -I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include -I/home/farhan/lvgl_test/ui -isystem /usr/include/SDL2 -isystem /home/farhan/lvgl_test -isystem /home/farhan/lvgl_test/lib/lvgl -isystem /home/farhan/lvgl_test/build/lib/lvgl -isystem /home/farhan/lvgl_test/lib/lvgl/examples -isystem /home/farhan/lvgl_test/lib/lvgl/demos
 
 C_FLAGS = -g   -pthread
 
 CXX_DEFINES = -DLV_CONF_INCLUDE_SIMPLE -DLV_KCONFIG_IGNORE -DLV_LVGL_H_INCLUDE_SIMPLE
 
-CXX_INCLUDES = -I/usr/include/gstreamer-1.0 -I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include -I/home/farhan/lvgl_test/ui -isystem /usr/include/SDL2 -isystem /home/farhan/lvgl_test -isystem /home/farhan/lvgl_test/lvgl -isystem /home/farhan/lvgl_test/build/lvgl -isystem /home/farhan/lvgl_test/lvgl/examples -isystem /home/farhan/lvgl_test/lvgl/demos
+CXX_INCLUDES = -I/usr/include/gstreamer-1.0 -I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include -I/home/farhan/lvgl_test/ui -isystem /usr/include/SDL2 -isystem /home/farhan/lvgl_test -isystem /home/farhan/lvgl_test/lib/lvgl -isystem /home/farhan/lvgl_test/build/lib/lvgl -isystem /home/farhan/lvgl_test/lib/lvgl/examples -isystem /home/farhan/lvgl_test/lib/lvgl/demos
 
 CXX_FLAGS = -g -std=gnu++14   -pthread
 

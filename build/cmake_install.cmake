@@ -44,7 +44,7 @@ endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for each subdirectory.
-  include("/home/farhan/lvgl_test/build/lvgl/cmake_install.cmake")
+  include("/home/farhan/lvgl_test/build/lib/lvgl/cmake_install.cmake")
 
 endif()
 

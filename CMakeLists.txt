@@ -12,7 +12,7 @@ include_directories(${SDL2_INCLUDE_DIRS} ${GST_INCLUDE_DIRS})
 link_directories(${GST_LIBRARY_DIRS})
 add_definitions(${GST_CFLAGS_OTHER})
 
-add_subdirectory(lvgl)
+add_subdirectory(lib/lvgl)
 
 file(GLOB UI_SOURCES "ui/*.c" "ui/*.cpp")
 

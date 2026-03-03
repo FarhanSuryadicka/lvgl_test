@@ -124,15 +124,15 @@ lvglkamera: CMakeFiles/lvglkamera.dir/src/main.cpp.o
 lvglkamera: CMakeFiles/lvglkamera.dir/ui/ui.c.o
 lvglkamera: CMakeFiles/lvglkamera.dir/ui/ui_events.cpp.o
 lvglkamera: CMakeFiles/lvglkamera.dir/build.make
-lvglkamera: lvgl/lib/liblvgl.a
-lvglkamera: lvgl/lib/liblvgl_examples.a
+lvglkamera: lib/lvgl/lib/liblvgl.a
+lvglkamera: lib/lvgl/lib/liblvgl_examples.a
 lvglkamera: /usr/lib/x86_64-linux-gnu/libSDL2.so
-lvglkamera: lvgl/lib/liblvgl_thorvg.a
-lvglkamera: lvgl/lib/liblvgl_demos.a
-lvglkamera: lvgl/lib/liblvgl.a
-lvglkamera: lvgl/lib/liblvgl_examples.a
-lvglkamera: lvgl/lib/liblvgl_thorvg.a
-lvglkamera: lvgl/lib/liblvgl_demos.a
+lvglkamera: lib/lvgl/lib/liblvgl_thorvg.a
+lvglkamera: lib/lvgl/lib/liblvgl_demos.a
+lvglkamera: lib/lvgl/lib/liblvgl.a
+lvglkamera: lib/lvgl/lib/liblvgl_examples.a
+lvglkamera: lib/lvgl/lib/liblvgl_thorvg.a
+lvglkamera: lib/lvgl/lib/liblvgl_demos.a
 lvglkamera: CMakeFiles/lvglkamera.dir/link.txt
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/home/farhan/lvgl_test/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Linking CXX executable lvglkamera"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/lvglkamera.dir/link.txt --verbose=$(VERBOSE)

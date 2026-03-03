@@ -184,7 +184,7 @@ lvgl: cmake_check_build_system
 
 # fast build rule for target.
 lvgl/fast:
-	$(MAKE) $(MAKESILENT) -f lvgl/CMakeFiles/lvgl.dir/build.make lvgl/CMakeFiles/lvgl.dir/build
+	$(MAKE) $(MAKESILENT) -f lib/lvgl/CMakeFiles/lvgl.dir/build.make lib/lvgl/CMakeFiles/lvgl.dir/build
 .PHONY : lvgl/fast
 
 #=============================================================================
@@ -197,7 +197,7 @@ lvgl_thorvg: cmake_check_build_system
 
 # fast build rule for target.
 lvgl_thorvg/fast:
-	$(MAKE) $(MAKESILENT) -f lvgl/CMakeFiles/lvgl_thorvg.dir/build.make lvgl/CMakeFiles/lvgl_thorvg.dir/build
+	$(MAKE) $(MAKESILENT) -f lib/lvgl/CMakeFiles/lvgl_thorvg.dir/build.make lib/lvgl/CMakeFiles/lvgl_thorvg.dir/build
 .PHONY : lvgl_thorvg/fast
 
 #=============================================================================
@@ -210,7 +210,7 @@ lvgl_examples: cmake_check_build_system
 
 # fast build rule for target.
 lvgl_examples/fast:
-	$(MAKE) $(MAKESILENT) -f lvgl/CMakeFiles/lvgl_examples.dir/build.make lvgl/CMakeFiles/lvgl_examples.dir/build
+	$(MAKE) $(MAKESILENT) -f lib/lvgl/CMakeFiles/lvgl_examples.dir/build.make lib/lvgl/CMakeFiles/lvgl_examples.dir/build
 .PHONY : lvgl_examples/fast
 
 #=============================================================================
@@ -223,7 +223,7 @@ lvgl_demos: cmake_check_build_system
 
 # fast build rule for target.
 lvgl_demos/fast:
-	$(MAKE) $(MAKESILENT) -f lvgl/CMakeFiles/lvgl_demos.dir/build.make lvgl/CMakeFiles/lvgl_demos.dir/build
+	$(MAKE) $(MAKESILENT) -f lib/lvgl/CMakeFiles/lvgl_demos.dir/build.make lib/lvgl/CMakeFiles/lvgl_demos.dir/build
 .PHONY : lvgl_demos/fast
 
 src/main.o: src/main.cpp.o

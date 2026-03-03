@@ -64,44 +64,44 @@ CMAKE_BINARY_DIR = /home/farhan/lvgl_test/build
 
 # The main recursive "all" target.
 all: CMakeFiles/lvglkamera.dir/all
-all: lvgl/all
+all: lib/lvgl/all
 .PHONY : all
 
 # The main recursive "preinstall" target.
-preinstall: lvgl/preinstall
+preinstall: lib/lvgl/preinstall
 .PHONY : preinstall
 
 # The main recursive "clean" target.
 clean: CMakeFiles/lvglkamera.dir/clean
-clean: lvgl/clean
+clean: lib/lvgl/clean
 .PHONY : clean
 
 #=============================================================================
-# Directory level rules for directory lvgl
+# Directory level rules for directory lib/lvgl
 
 # Recursive "all" directory target.
-lvgl/all: lvgl/CMakeFiles/lvgl.dir/all
-lvgl/all: lvgl/CMakeFiles/lvgl_thorvg.dir/all
-lvgl/all: lvgl/CMakeFiles/lvgl_examples.dir/all
-lvgl/all: lvgl/CMakeFiles/lvgl_demos.dir/all
-.PHONY : lvgl/all
+lib/lvgl/all: lib/lvgl/CMakeFiles/lvgl.dir/all
+lib/lvgl/all: lib/lvgl/CMakeFiles/lvgl_thorvg.dir/all
+lib/lvgl/all: lib/lvgl/CMakeFiles/lvgl_examples.dir/all
+lib/lvgl/all: lib/lvgl/CMakeFiles/lvgl_demos.dir/all
+.PHONY : lib/lvgl/all
 
 # Recursive "preinstall" directory target.
-lvgl/preinstall:
-.PHONY : lvgl/preinstall
+lib/lvgl/preinstall:
+.PHONY : lib/lvgl/preinstall
 
 # Recursive "clean" directory target.
-lvgl/clean: lvgl/CMakeFiles/lvgl.dir/clean
-lvgl/clean: lvgl/CMakeFiles/lvgl_thorvg.dir/clean
-lvgl/clean: lvgl/CMakeFiles/lvgl_examples.dir/clean
-lvgl/clean: lvgl/CMakeFiles/lvgl_demos.dir/clean
-.PHONY : lvgl/clean
+lib/lvgl/clean: lib/lvgl/CMakeFiles/lvgl.dir/clean
+lib/lvgl/clean: lib/lvgl/CMakeFiles/lvgl_thorvg.dir/clean
+lib/lvgl/clean: lib/lvgl/CMakeFiles/lvgl_examples.dir/clean
+lib/lvgl/clean: lib/lvgl/CMakeFiles/lvgl_demos.dir/clean
+.PHONY : lib/lvgl/clean
 
 #=============================================================================
 # Target rules for target CMakeFiles/lvglkamera.dir
 
 # All Build rule for target.
-CMakeFiles/lvglkamera.dir/all: lvgl/CMakeFiles/lvgl.dir/all
+CMakeFiles/lvglkamera.dir/all: lib/lvgl/CMakeFiles/lvgl.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/lvglkamera.dir/build.make CMakeFiles/lvglkamera.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/lvglkamera.dir/build.make CMakeFiles/lvglkamera.dir/build
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/farhan/lvgl_test/build/CMakeFiles --progress-num=100 "Built target lvglkamera"
@@ -124,108 +124,108 @@ CMakeFiles/lvglkamera.dir/clean:
 .PHONY : CMakeFiles/lvglkamera.dir/clean
 
 #=============================================================================
-# Target rules for target lvgl/CMakeFiles/lvgl.dir
+# Target rules for target lib/lvgl/CMakeFiles/lvgl.dir
 
 # All Build rule for target.
-lvgl/CMakeFiles/lvgl.dir/all: lvgl/CMakeFiles/lvgl_thorvg.dir/all
-	$(MAKE) $(MAKESILENT) -f lvgl/CMakeFiles/lvgl.dir/build.make lvgl/CMakeFiles/lvgl.dir/depend
-	$(MAKE) $(MAKESILENT) -f lvgl/CMakeFiles/lvgl.dir/build.make lvgl/CMakeFiles/lvgl.dir/build
+lib/lvgl/CMakeFiles/lvgl.dir/all: lib/lvgl/CMakeFiles/lvgl_thorvg.dir/all
+	$(MAKE) $(MAKESILENT) -f lib/lvgl/CMakeFiles/lvgl.dir/build.make lib/lvgl/CMakeFiles/lvgl.dir/depend
+	$(MAKE) $(MAKESILENT) -f lib/lvgl/CMakeFiles/lvgl.dir/build.make lib/lvgl/CMakeFiles/lvgl.dir/build
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/farhan/lvgl_test/build/CMakeFiles --progress-num=1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57 "Built target lvgl"
-.PHONY : lvgl/CMakeFiles/lvgl.dir/all
+.PHONY : lib/lvgl/CMakeFiles/lvgl.dir/all
 
 # Build rule for subdir invocation for target.
-lvgl/CMakeFiles/lvgl.dir/rule: cmake_check_build_system
+lib/lvgl/CMakeFiles/lvgl.dir/rule: cmake_check_build_system
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/farhan/lvgl_test/build/CMakeFiles 99
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 lvgl/CMakeFiles/lvgl.dir/all
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 lib/lvgl/CMakeFiles/lvgl.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/farhan/lvgl_test/build/CMakeFiles 0
-.PHONY : lvgl/CMakeFiles/lvgl.dir/rule
+.PHONY : lib/lvgl/CMakeFiles/lvgl.dir/rule
 
 # Convenience name for target.
-lvgl: lvgl/CMakeFiles/lvgl.dir/rule
+lvgl: lib/lvgl/CMakeFiles/lvgl.dir/rule
 .PHONY : lvgl
 
 # clean rule for target.
-lvgl/CMakeFiles/lvgl.dir/clean:
-	$(MAKE) $(MAKESILENT) -f lvgl/CMakeFiles/lvgl.dir/build.make lvgl/CMakeFiles/lvgl.dir/clean
-.PHONY : lvgl/CMakeFiles/lvgl.dir/clean
+lib/lvgl/CMakeFiles/lvgl.dir/clean:
+	$(MAKE) $(MAKESILENT) -f lib/lvgl/CMakeFiles/lvgl.dir/build.make lib/lvgl/CMakeFiles/lvgl.dir/clean
+.PHONY : lib/lvgl/CMakeFiles/lvgl.dir/clean
 
 #=============================================================================
-# Target rules for target lvgl/CMakeFiles/lvgl_thorvg.dir
+# Target rules for target lib/lvgl/CMakeFiles/lvgl_thorvg.dir
 
 # All Build rule for target.
-lvgl/CMakeFiles/lvgl_thorvg.dir/all: lvgl/CMakeFiles/lvgl_examples.dir/all
-	$(MAKE) $(MAKESILENT) -f lvgl/CMakeFiles/lvgl_thorvg.dir/build.make lvgl/CMakeFiles/lvgl_thorvg.dir/depend
-	$(MAKE) $(MAKESILENT) -f lvgl/CMakeFiles/lvgl_thorvg.dir/build.make lvgl/CMakeFiles/lvgl_thorvg.dir/build
+lib/lvgl/CMakeFiles/lvgl_thorvg.dir/all: lib/lvgl/CMakeFiles/lvgl_examples.dir/all
+	$(MAKE) $(MAKESILENT) -f lib/lvgl/CMakeFiles/lvgl_thorvg.dir/build.make lib/lvgl/CMakeFiles/lvgl_thorvg.dir/depend
+	$(MAKE) $(MAKESILENT) -f lib/lvgl/CMakeFiles/lvgl_thorvg.dir/build.make lib/lvgl/CMakeFiles/lvgl_thorvg.dir/build
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/farhan/lvgl_test/build/CMakeFiles --progress-num=95,96,97,98,99 "Built target lvgl_thorvg"
-.PHONY : lvgl/CMakeFiles/lvgl_thorvg.dir/all
+.PHONY : lib/lvgl/CMakeFiles/lvgl_thorvg.dir/all
 
 # Build rule for subdir invocation for target.
-lvgl/CMakeFiles/lvgl_thorvg.dir/rule: cmake_check_build_system
+lib/lvgl/CMakeFiles/lvgl_thorvg.dir/rule: cmake_check_build_system
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/farhan/lvgl_test/build/CMakeFiles 42
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 lvgl/CMakeFiles/lvgl_thorvg.dir/all
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 lib/lvgl/CMakeFiles/lvgl_thorvg.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/farhan/lvgl_test/build/CMakeFiles 0
-.PHONY : lvgl/CMakeFiles/lvgl_thorvg.dir/rule
+.PHONY : lib/lvgl/CMakeFiles/lvgl_thorvg.dir/rule
 
 # Convenience name for target.
-lvgl_thorvg: lvgl/CMakeFiles/lvgl_thorvg.dir/rule
+lvgl_thorvg: lib/lvgl/CMakeFiles/lvgl_thorvg.dir/rule
 .PHONY : lvgl_thorvg
 
 # clean rule for target.
-lvgl/CMakeFiles/lvgl_thorvg.dir/clean:
-	$(MAKE) $(MAKESILENT) -f lvgl/CMakeFiles/lvgl_thorvg.dir/build.make lvgl/CMakeFiles/lvgl_thorvg.dir/clean
-.PHONY : lvgl/CMakeFiles/lvgl_thorvg.dir/clean
+lib/lvgl/CMakeFiles/lvgl_thorvg.dir/clean:
+	$(MAKE) $(MAKESILENT) -f lib/lvgl/CMakeFiles/lvgl_thorvg.dir/build.make lib/lvgl/CMakeFiles/lvgl_thorvg.dir/clean
+.PHONY : lib/lvgl/CMakeFiles/lvgl_thorvg.dir/clean
 
 #=============================================================================
-# Target rules for target lvgl/CMakeFiles/lvgl_examples.dir
+# Target rules for target lib/lvgl/CMakeFiles/lvgl_examples.dir
 
 # All Build rule for target.
-lvgl/CMakeFiles/lvgl_examples.dir/all: lvgl/CMakeFiles/lvgl_demos.dir/all
-	$(MAKE) $(MAKESILENT) -f lvgl/CMakeFiles/lvgl_examples.dir/build.make lvgl/CMakeFiles/lvgl_examples.dir/depend
-	$(MAKE) $(MAKESILENT) -f lvgl/CMakeFiles/lvgl_examples.dir/build.make lvgl/CMakeFiles/lvgl_examples.dir/build
+lib/lvgl/CMakeFiles/lvgl_examples.dir/all: lib/lvgl/CMakeFiles/lvgl_demos.dir/all
+	$(MAKE) $(MAKESILENT) -f lib/lvgl/CMakeFiles/lvgl_examples.dir/build.make lib/lvgl/CMakeFiles/lvgl_examples.dir/depend
+	$(MAKE) $(MAKESILENT) -f lib/lvgl/CMakeFiles/lvgl_examples.dir/build.make lib/lvgl/CMakeFiles/lvgl_examples.dir/build
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/farhan/lvgl_test/build/CMakeFiles --progress-num=67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94 "Built target lvgl_examples"
-.PHONY : lvgl/CMakeFiles/lvgl_examples.dir/all
+.PHONY : lib/lvgl/CMakeFiles/lvgl_examples.dir/all
 
 # Build rule for subdir invocation for target.
-lvgl/CMakeFiles/lvgl_examples.dir/rule: cmake_check_build_system
+lib/lvgl/CMakeFiles/lvgl_examples.dir/rule: cmake_check_build_system
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/farhan/lvgl_test/build/CMakeFiles 37
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 lvgl/CMakeFiles/lvgl_examples.dir/all
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 lib/lvgl/CMakeFiles/lvgl_examples.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/farhan/lvgl_test/build/CMakeFiles 0
-.PHONY : lvgl/CMakeFiles/lvgl_examples.dir/rule
+.PHONY : lib/lvgl/CMakeFiles/lvgl_examples.dir/rule
 
 # Convenience name for target.
-lvgl_examples: lvgl/CMakeFiles/lvgl_examples.dir/rule
+lvgl_examples: lib/lvgl/CMakeFiles/lvgl_examples.dir/rule
 .PHONY : lvgl_examples
 
 # clean rule for target.
-lvgl/CMakeFiles/lvgl_examples.dir/clean:
-	$(MAKE) $(MAKESILENT) -f lvgl/CMakeFiles/lvgl_examples.dir/build.make lvgl/CMakeFiles/lvgl_examples.dir/clean
-.PHONY : lvgl/CMakeFiles/lvgl_examples.dir/clean
+lib/lvgl/CMakeFiles/lvgl_examples.dir/clean:
+	$(MAKE) $(MAKESILENT) -f lib/lvgl/CMakeFiles/lvgl_examples.dir/build.make lib/lvgl/CMakeFiles/lvgl_examples.dir/clean
+.PHONY : lib/lvgl/CMakeFiles/lvgl_examples.dir/clean
 
 #=============================================================================
-# Target rules for target lvgl/CMakeFiles/lvgl_demos.dir
+# Target rules for target lib/lvgl/CMakeFiles/lvgl_demos.dir
 
 # All Build rule for target.
-lvgl/CMakeFiles/lvgl_demos.dir/all:
-	$(MAKE) $(MAKESILENT) -f lvgl/CMakeFiles/lvgl_demos.dir/build.make lvgl/CMakeFiles/lvgl_demos.dir/depend
-	$(MAKE) $(MAKESILENT) -f lvgl/CMakeFiles/lvgl_demos.dir/build.make lvgl/CMakeFiles/lvgl_demos.dir/build
+lib/lvgl/CMakeFiles/lvgl_demos.dir/all:
+	$(MAKE) $(MAKESILENT) -f lib/lvgl/CMakeFiles/lvgl_demos.dir/build.make lib/lvgl/CMakeFiles/lvgl_demos.dir/depend
+	$(MAKE) $(MAKESILENT) -f lib/lvgl/CMakeFiles/lvgl_demos.dir/build.make lib/lvgl/CMakeFiles/lvgl_demos.dir/build
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/farhan/lvgl_test/build/CMakeFiles --progress-num=58,59,60,61,62,63,64,65,66 "Built target lvgl_demos"
-.PHONY : lvgl/CMakeFiles/lvgl_demos.dir/all
+.PHONY : lib/lvgl/CMakeFiles/lvgl_demos.dir/all
 
 # Build rule for subdir invocation for target.
-lvgl/CMakeFiles/lvgl_demos.dir/rule: cmake_check_build_system
+lib/lvgl/CMakeFiles/lvgl_demos.dir/rule: cmake_check_build_system
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/farhan/lvgl_test/build/CMakeFiles 9
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 lvgl/CMakeFiles/lvgl_demos.dir/all
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 lib/lvgl/CMakeFiles/lvgl_demos.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/farhan/lvgl_test/build/CMakeFiles 0
-.PHONY : lvgl/CMakeFiles/lvgl_demos.dir/rule
+.PHONY : lib/lvgl/CMakeFiles/lvgl_demos.dir/rule
 
 # Convenience name for target.
-lvgl_demos: lvgl/CMakeFiles/lvgl_demos.dir/rule
+lvgl_demos: lib/lvgl/CMakeFiles/lvgl_demos.dir/rule
 .PHONY : lvgl_demos
 
 # clean rule for target.
-lvgl/CMakeFiles/lvgl_demos.dir/clean:
-	$(MAKE) $(MAKESILENT) -f lvgl/CMakeFiles/lvgl_demos.dir/build.make lvgl/CMakeFiles/lvgl_demos.dir/clean
-.PHONY : lvgl/CMakeFiles/lvgl_demos.dir/clean
+lib/lvgl/CMakeFiles/lvgl_demos.dir/clean:
+	$(MAKE) $(MAKESILENT) -f lib/lvgl/CMakeFiles/lvgl_demos.dir/build.make lib/lvgl/CMakeFiles/lvgl_demos.dir/clean
+.PHONY : lib/lvgl/CMakeFiles/lvgl_demos.dir/clean
 
 #=============================================================================
 # Special targets to cleanup operation of make.
