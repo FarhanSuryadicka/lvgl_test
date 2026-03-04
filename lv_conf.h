@@ -1272,18 +1272,28 @@
 /* Deteksi Otomatis Target Build dari CMake */
 #ifdef TARGET_RENESAS
 
-    /* Matikan Simulator PC */
+    /* ==== MODE EMBEDDED LINUX (RENESAS) ==== */
+    
+    /* 1. Matikan Simulator PC */
     #define LV_USE_SDL              0
     #define LV_USE_X11              0
     #define LV_USE_WAYLAND          0
 
-    /* Hidupkan Driver Embedded Linux untuk Renesas */
-    #define LV_USE_LINUX_DRM        1  /* Display via GPU */
-    #define LV_USE_EVDEV            1  /* Input via Layar Sentuh / Mouse */
-    
-#else /* Build untuk PC */
+    /* 2. Hidupkan Driver Embedded Linux */
+    #define LV_USE_LINUX_DRM        1  /* Display via GPU /dev/dri/card0 */
+    #define LV_USE_EVDEV            1  /* Input via Layar Sentuh /dev/input/event0 */
+    #define LV_USE_LINUX_FBDEV      0
 
-    /* Hidupkan Simulator PC */
+    #if LV_USE_LINUX_DRM
+        /* Gunakan MESA GBM jika didukung oleh board untuk performa lebih baik */
+        #define LV_USE_LINUX_DRM_GBM_BUFFERS 0
+    #endif
+
+#else 
+
+    /* ==== MODE PC SIMULATOR (LOKAL) ==== */
+    
+    /* 1. Hidupkan Simulator PC */
     #define LV_USE_SDL              1
     #if LV_USE_SDL
         #define LV_SDL_INCLUDE_PATH     <SDL2/SDL.h>
@@ -1295,11 +1305,16 @@
         #define LV_SDL_MOUSEWHEEL_MODE  LV_SDL_MOUSEWHEEL_MODE_ENCODER
     #endif
 
-    /* Matikan Driver Embedded Linux */
+    #define LV_USE_X11              0
+    #define LV_USE_WAYLAND          0
+
+    /* 2. Matikan Driver Embedded Linux */
     #define LV_USE_LINUX_DRM        0
     #define LV_USE_EVDEV            0
+    #define LV_USE_LINUX_FBDEV      0
 
-#endif
+#endif /* TARGET_RENESAS */
+
 
 /** Use X11 to open window on Linux desktop and handle mouse and keyboard */
 #define LV_USE_X11              0
