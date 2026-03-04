@@ -5,8 +5,19 @@ set -e
 
 echo "==============================================="
 echo "MEMULAI PROSES CROSS-COMPILE UNTUK RENESAS..."
-echo "Target: AArch64 (DRM + Evdev)"
+echo "Target: Yocto SDK (aarch64-poky-linux)"
 echo "==============================================="
+
+# 1. PENGAMANAN: Cek apakah Yocto SDK environment sudah di-source
+if [ -z "$OECORE_NATIVE_SYSROOT" ]; then
+    echo "==============================================="
+    echo "[ERROR] Lingkungan Yocto SDK belum diaktifkan!"
+    echo "Silakan jalankan perintah source SDK Anda terlebih dahulu."
+    echo "Contoh: source /opt/poky/3.1.x/environment-setup-aarch64-poky-linux"
+    echo "Lalu jalankan ulang ./build.sh"
+    echo "==============================================="
+    exit 1
+fi
 
 BUILD_DIR="build_renesas"
 
@@ -19,23 +30,12 @@ fi
 mkdir -p $BUILD_DIR
 cd $BUILD_DIR
 
-# 1. PENGAMANAN PKG-CONFIG (Mencegah nyasar ke library x86_64 PC Anda)
-export PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig:/usr/share/pkgconfig
-export PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig
-export PKG_CONFIG_SYSROOT_DIR=/
+# 2. JALANKAN CMAKE
+# Karena Yocto SDK sudah otomatis mengatur $CC, $CXX, sysroot, dan pkg-config,
+# kita tidak perlu lagi mendefinisikannya secara manual. Cukup panggil cmake!
+cmake -DTARGET_RENESAS=ON ..
 
-# 2. Jalankan CMake dengan PENGAMANAN OPENCV
-cmake -DTARGET_RENESAS=ON \
-      -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc \
-      -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ \
-      -DCMAKE_SYSTEM_NAME=Linux \
-      -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
-      -DCMAKE_C_FLAGS="-march=armv8-a" \
-      -DCMAKE_CXX_FLAGS="-march=armv8-a" \
-      -DOpenCV_DIR=/usr/lib/aarch64-linux-gnu/cmake/opencv4 \
-      ..
-
-# Kompilasi
+# 3. KOMPILASI
 make -j$(nproc)
 
 echo "==============================================="

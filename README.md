@@ -4,26 +4,26 @@ Proyek ini adalah aplikasi C++ performa tinggi yang menggabungkan antarmuka **LV
 
 Aplikasi ini mendukung dua mode *build* utama:
 1. **PC Desktop Simulator:** Menggunakan SDL2 untuk *rendering* UI di lingkungan lokal.
-2. **Embedded Linux (Renesas):** Menggunakan DRM/Evdev untuk *rendering* langsung ke layar perangkat keras (arsitektur AArch64).
+2. **Embedded Linux (Renesas/Poky):** Menggunakan DRM/Evdev untuk *rendering* langsung ke layar perangkat keras pada distribusi berbasis **Yocto (aarch64-poky-linux)**.
 
 ---
 
 ## 📂 Ringkasan Struktur Direktori
 
-- `CMakeLists.txt` — Konfigurasi build utama. Mendeteksi target platform (x86_64 vs AArch64) dan mengatur *linking* library secara otomatis.
+- `CMakeLists.txt` — Konfigurasi build utama. Mendeteksi target platform secara otomatis.
 - `src/` — Berisi *entry point* aplikasi (`main_stats.cpp`) dan logika pembacaan statistik perangkat keras (`platform_stats.cpp`).
-- `ui/` — Sumber antarmuka LVGL. Logika pemrosesan Moildev, integrasi GStreamer, dan *event handler* UI berada di `ui_events.cpp`.
-- `lib/lvgl/` — Sumber *library* LVGL. Konfigurasi LVGL dapat diubah melalui `lv_conf.h`.
-- `lib/moil/` — Berisi *precompiled library* Moildev, dipisah berdasarkan arsitektur:
-  - `aarch64/` -> Berisi `libmoildev.so` untuk target Renesas (ARM64).
-  - `x86_64/` -> Berisi `libmoildev.so` untuk PC Simulator.
+- `ui/` — Sumber antarmuka LVGL. Logika pemrosesan Moildev dan *event handler* UI berada di `ui_events.cpp`.
+- `lib/lvgl/` — Sumber *library* LVGL. Konfigurasi otomatis melalui `lv_conf.h` (SDL2 vs DRM).
+- `lib/moil/` — Berisi *precompiled library* Moildev:
+  - `aarch64/` -> `libmoildev.so` untuk target Renesas (Poky).
+  - `x86_64/` -> `libmoildev.so` untuk PC Simulator.
 
 ---
 
 ## 🛠️ Dependensi Utama
 
 Proyek ini membutuhkan pustaka berikut:
-- **LVGL** (Termasuk dalam *source*)
+- **LVGL v9** (Termasuk dalam *source*)
 - **SDL2** (Hanya untuk PC Simulator)
 - **libdrm** (Hanya untuk target Renesas)
 - **GStreamer 1.0** & `gst-plugins-base`
@@ -31,30 +31,11 @@ Proyek ini membutuhkan pustaka berikut:
 - **Moildev** (Disediakan internal di `lib/moil/`)
 
 ### Instalasi Dependensi PC (Ubuntu/Debian)
-
-Gunakan perintah berikut untuk menginstal seluruh kebutuhan *build* di PC Simulator Anda (x86_64):
-
 ```bash
 sudo apt update
 sudo apt install -y build-essential cmake pkg-config git \
     libsdl2-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
-    gstreamer1.0-plugins-good gstreamer1.0-tools \
-    libopencv-dev
-```
-
-### Instalasi Dependensi Cross-Compile (AArch64 / Renesas)
-
-Jika Anda ingin melakukan *build* untuk board Renesas, Anda harus menginstal *toolchain cross-compile* dan pustaka versi `arm64` di PC Ubuntu host Anda:
-
-```bash
-# Tambahkan arsitektur arm64 ke sistem package manager
-sudo dpkg --add-architecture arm64
-sudo apt update
-
-# Instal compiler dan library target
-sudo apt install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
-    libsdl2-dev:arm64 libgstreamer1.0-dev:arm64 libgstreamer-plugins-base1.0-dev:arm64 \
-    libopencv-dev:arm64 libdrm-dev:arm64
+    gstreamer1.0-plugins-good gstreamer1.0-tools libopencv-dev
 ```
 
 ---
@@ -62,46 +43,52 @@ sudo apt install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
 ## 🚀 Cara Build & Menjalankan
 
 ### Opsi 1: Build untuk PC Simulator (x86_64)
-
 Gunakan mode ini untuk menguji UI dan logika Moildev di PC Anda.
-
 ```bash
 mkdir -p build && cd build
 cmake ..
 cmake --build . -j$(nproc)
 ./lvglkamera
 ```
-*Catatan: RPATH telah diatur oleh CMake agar otomatis menemukan `libmoildev.so` di dalam folder `lib/moil/x86_64`.*
 
-### Opsi 2: Build untuk Renesas Embedded (AArch64)
+### Opsi 2: Build untuk Renesas Embedded (Yocto/Poky)
+Gunakan Yocto SDK Toolchain untuk *cross-compile*. Script `build.sh` akan otomatis mendeteksi lingkungan SDK Anda.
 
-Gunakan script `build.sh` yang telah disediakan untuk mencegah bentrok antara library PC host (x86_64) dan library target (AArch64). Script ini akan mengarahkan `pkg-config` dan CMake untuk murni menggunakan ekosistem ARM64.
+1. **Aktifkan SDK Yocto:**
+   Sesuaikan path dengan lokasi instalasi SDK Anda.
+   ```bash
+   source /opt/poky/x.y.z/environment-setup-aarch64-poky-linux
+   ```
 
-```bash
-chmod +x build.sh
-./build.sh
-```
+2. **Jalankan Build Script:**
+   ```bash
+   chmod +x build.sh
+   ./build.sh
+   ```
 
 **⚠️ Penting saat Deploy ke Renesas:**
-1. Salin *executable* `lvglkamera` hasil *build* ke board Renesas.
-2. Salin file `lib/moil/aarch64/libmoildev.so` ke folder `/usr/lib` (atau folder library sistem lainnya) di dalam board Renesas Anda agar sistem dapat menemukannya saat aplikasi dijalankan.
+1. Salin *executable* `lvglkamera` hasil build ke board.
+2. Salin file `lib/moil/aarch64/libmoildev.so` ke direktori library sistem di board (contoh: `/usr/lib`) agar aplikasi dapat berjalan tanpa error *linkage*.
 
 ---
 
 ## 🧠 Fitur Utama
 
-- **Fisheye Dewarping Real-time:** Memanfaatkan library Moildev untuk mengubah gambar *fisheye* menjadi mode **Panorama** atau **Anypoint** secara *real-time*.
-- **Optimasi Resolusi:** Menggunakan resolusi 1600x1200 untuk menjaga keseimbangan antara ketajaman detail kamera dan beban komputasi CPU.
-- **UI Interaktif:** Parameter lensa (Alpha, Beta, Zoom) dapat disesuaikan langsung melalui *slider* LVGL secara instan. Tampilan panel konfigurasi akan menyesuaikan mode yang dipilih secara otomatis.
-- **Hardware Stats Real-time:** Membaca status penggunaan CPU, Memory (RAM), dan GPU (via `nvidia-smi` jika tersedia) secara langsung.
+- **Fisheye Dewarping Real-time:** Transformasi gambar *fisheye* menjadi **Panorama** atau **Anypoint** secara instan.
+- **Optimasi Resolusi:** Berjalan pada **1600x1200** untuk keseimbangan performa CPU dan kualitas visual.
+- **UI Interaktif:** Parameter lensa (Alpha, Beta, Zoom) dapat disesuaikan via *slider* dengan transisi mode otomatis.
+- **Auto-Config UI:** Label konfigurasi berubah secara dinamis (contoh: Alpha menjadi Alpha Max pada mode Panorama).
+- **Hardware Stats:** Monitoring penggunaan CPU aplikasi secara akurat (sinkron dengan System Monitor) serta RAM dan GPU.
 
 ---
 
 ## 🔧 Troubleshooting
 
-- **Error: `undefined reference to moildev::...` saat linking**
-  Pastikan `libmoildev.so` sudah berada di direktori arsitektur yang benar (`lib/moil/x86_64` atau `lib/moil/aarch64`) dan sesuai dengan target yang sedang di-*build*.
-- **Error: `cannot open shared object file: No such file or directory` (Di Board Renesas)**
-  Aplikasi tidak menemukan library Moildev. Pastikan Anda sudah memindahkan `libmoildev.so` (versi AArch64) ke direktori library sistem seperti `/usr/lib` pada *board* target Anda.
-- **Kamera tidak muncul (Lag/Freeze)**
-  Periksa *pipeline* GStreamer Anda. Pastikan `/dev/video0` tersedia dan memiliki akses baca/tulis (`sudo chmod 666 /dev/video0`).
+- **Error: `Yocto SDK environment belum diaktifkan!`**
+  Pastikan Anda sudah menjalankan perintah `source` pada file `environment-setup-...` milik SDK Renesas Anda sebelum menjalankan `build.sh`.
+- **Error: `undefined reference to moildev::...`**
+  Periksa folder `lib/moil/`. Pastikan library `.so` tersedia untuk arsitektur yang sedang dibangun.
+- **Error: `cannot open shared object file` (Di Board)**
+  Pastikan `libmoildev.so` versi `aarch64` sudah dikopi ke `/usr/lib` atau folder yang terdaftar di `LD_LIBRARY_PATH` pada board Renesas.
+- **Kamera Lag/Freeze:**
+  Pastikan user memiliki izin akses ke device: `sudo chmod 666 /dev/video0` atau jalankan sebagai root.
