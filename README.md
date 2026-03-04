@@ -106,6 +106,16 @@ Tips pengembangan
 - Tempatkan logika aplikasi utama di `src/main.cpp`.
 - Jika menambahkan OpenCV atau library lain, pasang package `-dev` yang sesuai dan link dengan CMake.
 
+Realtime system stats (CPU / Memory / GPU)
+
+Proyek sekarang menyertakan tampilan statistik realtime di UI (CPU% dan Memory usage selalu ditampilkan; GPU% akan ditampilkan jika tersedia melalui `nvidia-smi`). Implementasi:
+
+- Sampling CPU/memory: dibaca dari `/proc/stat` dan `/proc/meminfo` (Linux).
+- Sampling GPU: program mencoba memanggil `nvidia-smi` dan membaca `utilization.gpu`; jika tidak ada `nvidia-smi` atau GPU tidak terdeteksi, UI akan menampilkan `GPU: N/A`.
+- Kode terkait: `src/platform_stats.*` (sampling) dan `src/main_stats.cpp` (background sampler + LVGL labels).
+
+Jika Anda ingin mengaktifkan dukungan GPU lain (AMD, vendor khusus), sesuaikan fungsi `read_gpu_via_nvidia_smi()` di `src/platform_stats.cpp` atau tambahkan deteksi/pengambilan data GPU lain.
+
 Contributing
 
 - Buat branch fitur lalu push perubahan. Sertakan deskripsi yang jelas di PR.

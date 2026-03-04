@@ -66,8 +66,10 @@ add_subdirectory(lib/lvgl)
 # Ambil semua file UI hasil ekspor
 file(GLOB UI_SOURCES "ui/*.c" "ui/*.cpp")
 
+set(SRC_APP src/main_stats.cpp src/platform_stats.cpp)
+
 # Buat executable
-add_executable(lvglkamera src/main.cpp ${UI_SOURCES})
+add_executable(lvglkamera ${SRC_APP} ${UI_SOURCES})
 
 # ==============================================================================
 # 4. LINKING & DIRECTORIES
