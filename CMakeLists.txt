@@ -31,6 +31,11 @@ include_directories(${GST_INCLUDE_DIRS})
 link_directories(${GST_LIBRARY_DIRS})
 add_definitions(${GST_CFLAGS_OTHER})
 
+find_package(OpenCV REQUIRED)
+include_directories(${OpenCV_INCLUDE_DIRS})
+
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/moil)
+
 # ==============================================================================
 # 2. KONFIGURASI KHUSUS PLATFORM
 # ==============================================================================
@@ -81,12 +86,26 @@ add_executable(lvglkamera ${SRC_APP} ${UI_SOURCES})
 # ==============================================================================
 # 4. LINKING & DIRECTORIES
 # ==============================================================================
+
+# [TAMBAHAN BARU] Cari library moildev di dalam folder moil
+find_library(MOILDEV_LIB 
+    NAMES moildev 
+    PATHS ${CMAKE_CURRENT_SOURCE_DIR}/moil 
+    NO_DEFAULT_PATH # Paksa CMake mencari hanya di folder moil Anda
+)
+
+if(NOT MOILDEV_LIB)
+    message(FATAL_ERROR "Library Moildev (libmoildev.so / libmoildev.a) tidak ditemukan di folder moil!")
+endif()
+
 target_link_libraries(lvglkamera 
     lvgl 
     lvgl::examples 
     ${PLATFORM_LIBS} 
     ${GST_LIBRARIES}
-    pthread  # Tambahkan pthread secara eksplisit untuk keamanan
+    ${OpenCV_LIBS}
+    ${MOILDEV_LIB}  # <--- Tautkan library moildev yang ditemukan
+    pthread
     dl
 )
 
@@ -94,4 +113,7 @@ target_include_directories(lvglkamera PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/ui
     ${CMAKE_CURRENT_SOURCE_DIR}/lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/moil  # <--- Pastikan folder header moil ikut disertakan
 )
+
+set_target_properties(lvglkamera PROPERTIES BUILD_RPATH "${CMAKE_CURRENT_SOURCE_DIR}/moil")

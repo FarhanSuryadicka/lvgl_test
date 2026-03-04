@@ -28,21 +28,26 @@ static bool read_total_jiffies(unsigned long long &total) {
 }
 
 // Read process jiffies (utime + stime) from /proc/<pid>/stat
+// Read process jiffies (utime + stime) from /proc/<pid>/stat
 static bool read_proc_jiffies(pid_t pid, unsigned long long &proc_jiffies) {
     std::string path = std::string("/proc/") + std::to_string(pid) + "/stat";
     std::ifstream f(path);
     if(!f.is_open()) return false;
     std::string content;
     std::getline(f, content);
+    
     // skip comm (may contain spaces) which is between first '(' and last ')'
     size_t rparen = content.rfind(')');
     if(rparen == std::string::npos) return false;
     std::string rest = content.substr(rparen+2); // skip ") "
     std::istringstream ss(rest);
-    // fields after comm: state(1), ppid(2), pgrp(3), session(4), tty_nr(5), tpgid(6), flags(7), minflt(8), cminflt(9), majflt(10), cmajflt(11), utime(12), stime(13), ...
-    // We need utime (field 14 overall) and stime (15 overall) relative to start; after skipping 11 fields to reach utime
-    unsigned long long skip;
-    for(int i=0;i<11;i++) ss >> skip;
+    
+    // PERBAIKAN: Gunakan std::string untuk skip agar aman saat membaca huruf (state 'S'/'R')
+    std::string skip; 
+    for(int i=0; i<11; i++) {
+        ss >> skip;
+    }
+    
     unsigned long long utime=0, stime=0;
     ss >> utime >> stime;
     proc_jiffies = utime + stime;
