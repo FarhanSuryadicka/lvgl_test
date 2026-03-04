@@ -19,11 +19,12 @@ fi
 mkdir -p $BUILD_DIR
 cd $BUILD_DIR
 
-# Set environment agar pkg-config mencari library ARM, bukan x86
-# Pastikan Anda sudah menginstall libdrm-dev:arm64
+# 1. PENGAMANAN PKG-CONFIG (Mencegah nyasar ke library x86_64 PC Anda)
 export PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig:/usr/share/pkgconfig
+export PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig
+export PKG_CONFIG_SYSROOT_DIR=/
 
-# Jalankan CMake
+# 2. Jalankan CMake dengan PENGAMANAN OPENCV
 cmake -DTARGET_RENESAS=ON \
       -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc \
       -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ \
@@ -31,6 +32,7 @@ cmake -DTARGET_RENESAS=ON \
       -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
       -DCMAKE_C_FLAGS="-march=armv8-a" \
       -DCMAKE_CXX_FLAGS="-march=armv8-a" \
+      -DOpenCV_DIR=/usr/lib/aarch64-linux-gnu/cmake/opencv4 \
       ..
 
 # Kompilasi

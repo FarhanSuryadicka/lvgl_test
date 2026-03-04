@@ -87,17 +87,27 @@ add_executable(lvglkamera ${SRC_APP} ${UI_SOURCES})
 # 4. LINKING & DIRECTORIES
 # ==============================================================================
 
-# [TAMBAHAN BARU] Cari library moildev di dalam folder moil
+# 1. Tentukan folder library berdasarkan target arsitektur
+if(TARGET_RENESAS)
+    set(MOIL_LIB_DIR "${CMAKE_CURRENT_SOURCE_DIR}/lib/moil/aarch64")
+    message(STATUS "[Info] Menggunakan library Moildev AArch64 dari: ${MOIL_LIB_DIR}")
+else()
+    set(MOIL_LIB_DIR "${CMAKE_CURRENT_SOURCE_DIR}/lib/moil/x86_64")
+    message(STATUS "[Info] Menggunakan library Moildev x86_64 dari: ${MOIL_LIB_DIR}")
+endif()
+
+# 2. Cari library moildev di dalam folder yang sudah ditentukan
 find_library(MOILDEV_LIB 
     NAMES moildev 
-    PATHS ${CMAKE_CURRENT_SOURCE_DIR}/moil 
-    NO_DEFAULT_PATH # Paksa CMake mencari hanya di folder moil Anda
+    PATHS ${MOIL_LIB_DIR} 
+    NO_DEFAULT_PATH # Paksa CMake mencari hanya di folder spesifik tersebut
 )
 
 if(NOT MOILDEV_LIB)
-    message(FATAL_ERROR "Library Moildev (libmoildev.so / libmoildev.a) tidak ditemukan di folder moil!")
+    message(FATAL_ERROR "Library Moildev (libmoildev.so) tidak ditemukan di ${MOIL_LIB_DIR}!")
 endif()
 
+# 3. Tautkan library ke aplikasi
 target_link_libraries(lvglkamera 
     lvgl 
     lvgl::examples 
@@ -109,11 +119,20 @@ target_link_libraries(lvglkamera
     dl
 )
 
+# 4. Tentukan direktori Include (Pastikan file .hpp moildev ada di sini)
 target_include_directories(lvglkamera PRIVATE 
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/ui
     ${CMAKE_CURRENT_SOURCE_DIR}/lib
-    ${CMAKE_CURRENT_SOURCE_DIR}/moil  # <--- Pastikan folder header moil ikut disertakan
+    ${CMAKE_CURRENT_SOURCE_DIR}/lib/moil # Sesuaikan jika moildev.hpp ada di dalam lib/moil
 )
 
-set_target_properties(lvglkamera PROPERTIES BUILD_RPATH "${CMAKE_CURRENT_SOURCE_DIR}/moil")
+# 5. Atur RPATH dengan aman
+if(NOT TARGET_RENESAS)
+    # Untuk PC Simulator (x86_64), izinkan RPATH membaca dari folder lokal agar bisa langsung di-run
+    set_target_properties(lvglkamera PROPERTIES BUILD_RPATH "${MOIL_LIB_DIR}")
+else()
+    # Untuk Renesas, hapus rpath lokal agar tidak error "cannot open shared object file"
+    # Pastikan nanti Anda meng-copy libmoildev.so ke /usr/lib di dalam board Renesas Anda.
+    set_target_properties(lvglkamera PROPERTIES SKIP_BUILD_RPATH TRUE)
+endif()
