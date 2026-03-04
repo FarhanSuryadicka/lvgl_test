@@ -64,7 +64,14 @@ endif()
 add_subdirectory(lib/lvgl)
 
 # Ambil semua file UI hasil ekspor
-file(GLOB UI_SOURCES "ui/*.c" "ui/*.cpp")
+file(GLOB UI_ALL "ui/*.c" "ui/*.cpp")
+set(UI_SOURCES "")
+foreach(_f ${UI_ALL})
+    # Exclude the old ui.c (we will use ui_new.c as the generated UI)
+    if(NOT _f MATCHES ".*/ui\.c$")
+        list(APPEND UI_SOURCES ${_f})
+    endif()
+endforeach()
 
 set(SRC_APP src/main_stats.cpp src/platform_stats.cpp)
 

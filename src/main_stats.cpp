@@ -1,5 +1,5 @@
 #include "lvgl/lvgl.h"
-#include "ui/ui.h"
+#include "ui/ui_new.h"
 #include "platform_stats.h"
 
 #include <thread>
@@ -35,50 +35,40 @@ int main(int argc, char **argv) {
     // Inisialisasi UI
     ui_init();
 
-    // Create labels to show stats
-    lv_obj_t * label_cpu = lv_label_create(lv_scr_act());
-    lv_label_set_text(label_cpu, "CPU: ...");
-    lv_obj_align(label_cpu, LV_ALIGN_TOP_LEFT, 8, 8);
-
-    lv_obj_t * label_mem = lv_label_create(lv_scr_act());
-    lv_label_set_text(label_mem, "MEM: ...");
-    lv_obj_align(label_mem, LV_ALIGN_TOP_LEFT, 8, 32);
-
-    lv_obj_t * label_gpu = lv_label_create(lv_scr_act());
-    lv_label_set_text(label_gpu, "GPU: ...");
-    lv_obj_align(label_gpu, LV_ALIGN_TOP_LEFT, 8, 56);
-
-    // Create LVGL timer to refresh labels from latest stats
-    struct StatsLabelPtrs { lv_obj_t *cpu; lv_obj_t *mem; lv_obj_t *gpu; };
-    auto *labels = new StatsLabelPtrs{label_cpu, label_mem, label_gpu};
+    // Create LVGL timer to refresh labels from latest stats.
+    // The labels are created by the generated UI (`ui_new.c`) and exposed as
+    // `ui_stat_cpu`, `ui_stat_mem`, `ui_stat_gpu`.
     auto stats_timer_cb = [](lv_timer_t * timer){
-        void * ud = lv_timer_get_user_data(timer);
-        StatsLabelPtrs *p = static_cast<StatsLabelPtrs*>(ud);
-        if(!p) return;
         SysStats s;
         if(read_process_stats(s)){
             char buf[128];
             // CPU (process) overall percent
-            snprintf(buf, sizeof(buf), "CPU: %.2f%%", s.proc_cpu_percent);
-            lv_label_set_text(p->cpu, buf);
+            if(ui_stat_cpu) {
+                snprintf(buf, sizeof(buf), "CPU: %.2f%%", s.proc_cpu_percent);
+                lv_label_set_text(ui_stat_cpu, buf);
+            }
             // Memory (process resident)
-            if(s.proc_rss_kb>0){
-                snprintf(buf, sizeof(buf), "MEM: %ld MB", s.proc_rss_kb/1024);
-            } else {
-                snprintf(buf, sizeof(buf), "MEM: N/A");
+            if(ui_stat_mem) {
+                if(s.proc_rss_kb>0){
+                    snprintf(buf, sizeof(buf), "MEM: %ld MB", s.proc_rss_kb/1024);
+                } else {
+                    snprintf(buf, sizeof(buf), "MEM: N/A");
+                }
+                lv_label_set_text(ui_stat_mem, buf);
             }
-            lv_label_set_text(p->mem, buf);
-            // GPU utilization (device-wide) as percent
-            if(s.gpu_util_percent >= 0){
-                snprintf(buf, sizeof(buf), "GPU: %.0f%%", s.gpu_util_percent);
-            } else {
-                snprintf(buf, sizeof(buf), "GPU: N/A");
+            // GPU utilization estimate per-process
+            if(ui_stat_gpu) {
+                if(s.gpu_util_percent >= 0){
+                    snprintf(buf, sizeof(buf), "GPU: %.1f%%", s.gpu_util_percent);
+                } else {
+                    snprintf(buf, sizeof(buf), "GPU: N/A");
+                }
+                lv_label_set_text(ui_stat_gpu, buf);
             }
-            lv_label_set_text(p->gpu, buf);
         }
     };
 
-    lv_timer_t * t = lv_timer_create((lv_timer_cb_t)stats_timer_cb, 1000, labels);
+    lv_timer_t * t = lv_timer_create((lv_timer_cb_t)stats_timer_cb, 1000, NULL);
 
     // Main Loop
     while(1) {

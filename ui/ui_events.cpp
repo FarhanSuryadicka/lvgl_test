@@ -1,4 +1,5 @@
-#include "ui.h"
+#include "ui_new.h"
+#include "screens.h"
 #include "lvgl/lvgl.h"
 #include <iostream>
 #include <vector>
@@ -17,6 +18,9 @@ lv_timer_t * camera_timer = NULL;
 static GstElement * gst_pipeline = nullptr;
 static GstElement * gst_appsink = nullptr;
 lv_image_dsc_t img_dsc = {0}; // Struktur gambar milik LVGL
+
+// Local FPS label for compatibility with older UI
+static lv_obj_t * ui_lbl_fps_local = NULL;
 
 // Callback Timer (Berjalan ~30 FPS)
 static void camera_stream_cb(lv_timer_t * timer) {
@@ -51,8 +55,9 @@ static void camera_stream_cb(lv_timer_t * timer) {
     const size_t src_size = map.size;
 
     // 4. Pack RGB888 -> RGB565 into a persistent buffer for LVGL
+    // We scale the incoming frame to the target display object (`moil_image`) size
+    // so the sidebar shows a thumbnail instead of the full-sized fisheye image.
     static std::vector<uint16_t> rgb565_buf; // persists between calls
-    rgb565_buf.resize(w * h);
 
     const size_t expected_size = (size_t)w * (size_t)h * 3;
     if(src_size < expected_size) {
@@ -62,13 +67,32 @@ static void camera_stream_cb(lv_timer_t * timer) {
         return;
     }
 
-    for(int y = 0, si = 0; y < h; ++y) {
-        for(int x = 0; x < w; ++x, si += 3) {
+    // Determine target size. Prefer the `moil_image` object size when available.
+    int tw = w, th = h;
+    if(objects.moil_image) {
+        tw = lv_obj_get_width(objects.moil_image);
+        th = lv_obj_get_height(objects.moil_image);
+        if(tw <= 0) tw = w / 4; // fallback to smaller thumbnail
+        if(th <= 0) th = h / 4;
+    } else {
+        // Default thumbnail if no target object: quarter size
+        tw = std::max(16, w / 4);
+        th = std::max(16, h / 4);
+    }
+
+    rgb565_buf.resize((size_t)tw * (size_t)th);
+
+    // Nearest-neighbor scaling from src (w x h, RGB888) -> dst (tw x th, RGB565)
+    for(int yy = 0; yy < th; ++yy) {
+        int src_y = (yy * h) / th;
+        for(int xx = 0; xx < tw; ++xx) {
+            int src_x = (xx * w) / tw;
+            size_t si = (size_t)src_y * (size_t)w * 3 + (size_t)src_x * 3;
             const uint8_t r = src[si + 0];
             const uint8_t g = src[si + 1];
             const uint8_t b = src[si + 2];
             const uint16_t p = (uint16_t)(((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3));
-            rgb565_buf[y * w + x] = p;
+            rgb565_buf[(size_t)yy * (size_t)tw + (size_t)xx] = p;
         }
     }
 
@@ -79,16 +103,19 @@ static void camera_stream_cb(lv_timer_t * timer) {
     // 5. Siapkan struktur "Image Descriptor" untuk LVGL versi 9 (RGB565)
     img_dsc.header.magic = LV_IMAGE_HEADER_MAGIC;
     img_dsc.header.cf = LV_COLOR_FORMAT_RGB565; // Match LV_COLOR_DEPTH = 16
-    img_dsc.header.w = w;
-    img_dsc.header.h = h;
-    img_dsc.header.stride = w * sizeof(uint16_t); // bytes per line
+    // Use the scaled target width/height (tw/th) so LVGL knows the image size
+    img_dsc.header.w = tw;
+    img_dsc.header.h = th;
+    img_dsc.header.stride = tw * sizeof(uint16_t); // bytes per line
 
     // 6. Sambungkan pointer data LVGL ke buffer RGB565 kita
     img_dsc.data = reinterpret_cast<const uint8_t*>(rgb565_buf.data());
     img_dsc.data_size = rgb565_buf.size() * sizeof(uint16_t);
 
-    // 6. Tampilkan ke UI!
-    lv_image_set_src(ui_img_video, &img_dsc);
+    // 6. Tampilkan ke UI! (map to new UI object's moil_image)
+    if(objects.moil_image) {
+        lv_image_set_src(objects.moil_image, &img_dsc);
+    }
 
     // ---- Update FPS label (real-time, smoothed) ----
     // Use steady_clock to measure wall-clock time between frames
@@ -105,10 +132,15 @@ static void camera_stream_cb(lv_timer_t * timer) {
         if(fps_ema <= 0.0) fps_ema = inst_fps;
         else fps_ema = fps_ema * (1.0 - alpha) + inst_fps * alpha;
 
-        if(ui_lbl_fps) {
+        if(!ui_lbl_fps_local) {
+            ui_lbl_fps_local = lv_label_create(lv_scr_act());
+            lv_label_set_text(ui_lbl_fps_local, "FPS: 0.0");
+            lv_obj_align(ui_lbl_fps_local, LV_ALIGN_TOP_RIGHT, -10, 10);
+        }
+        if(ui_lbl_fps_local) {
             char buf[32];
             std::snprintf(buf, sizeof(buf), "FPS: %.1f", fps_ema);
-            lv_label_set_text(ui_lbl_fps, buf);
+            lv_label_set_text(ui_lbl_fps_local, buf);
         }
     } else {
         first = false;
@@ -117,7 +149,7 @@ static void camera_stream_cb(lv_timer_t * timer) {
 }
 
 // Event Handler Tombol
-void on_start_kamera_clicked(lv_event_t * e) {
+extern "C" void on_start_kamera_clicked(lv_event_t * e) {
     if(!is_camera_running) {
         // Initialize GStreamer and start pipeline.
         // Change the pipeline string below if you need a different source
@@ -162,10 +194,10 @@ void on_start_kamera_clicked(lv_event_t * e) {
         std::cout << "Kamera Dimulai... (GStreamer)" << std::endl;
         is_camera_running = true;
 
-        // Ubah teks tombol
-        lv_obj_t * btn = (lv_obj_t *)lv_event_get_target(e);
-        lv_obj_t * label = lv_obj_get_child(btn, 0); 
-        lv_label_set_text(label, "Stop Kamera");
+    // Ubah teks tombol
+    lv_obj_t * btn = (lv_obj_t *)lv_event_get_target(e);
+    lv_obj_t * label = lv_obj_get_child(btn, 0);
+    if(label) lv_label_set_text(label, "Stop Kamera");
 
         // Jalankan timer untuk mengambil frame setiap 33ms (~30 FPS)
         if(camera_timer == NULL) {
@@ -189,13 +221,13 @@ void on_start_kamera_clicked(lv_event_t * e) {
             gst_pipeline = nullptr;
         }
 
-        // Bersihkan layar
-        lv_image_set_src(ui_img_video, NULL);
+    // Bersihkan layar (map to new UI object)
+    if(objects.moil_image) lv_image_set_src(objects.moil_image, NULL);
 
-        // Kembalikan teks tombol
-        lv_obj_t * btn = (lv_obj_t *)lv_event_get_target(e);
-        lv_obj_t * label = lv_obj_get_child(btn, 0);
-        lv_label_set_text(label, "Mulai Kamera");
+    // Kembalikan teks tombol
+    lv_obj_t * btn = (lv_obj_t *)lv_event_get_target(e);
+    lv_obj_t * label = lv_obj_get_child(btn, 0);
+    if(label) lv_label_set_text(label, "Mulai Kamera");
 
         if(camera_timer != NULL) {
             lv_timer_pause(camera_timer);
