@@ -1,134 +1,107 @@
-# lvglkamera — LVGL + Kamera (desktop example)
+# lvglkamera — LVGL + Kamera Fisheye (Moildev) + GStreamer
 
-Proyek ini adalah contoh aplikasi C++ yang menggabungkan LVGL (Light and Versatile Graphics Library) dengan backend desktop (SDL2) dan GStreamer untuk input/video pipeline. Nama target CMake: `lvglkamera` (executable: `lvglkamera`).
+Proyek ini adalah aplikasi C++ performa tinggi yang menggabungkan antarmuka **LVGL (Light and Versatile Graphics Library)**, **GStreamer** untuk penangkapan *pipeline* kamera, **OpenCV** untuk pemrosesan gambar, dan **Moildev** untuk de-warping lensa *fisheye* (mode Panorama & Anypoint). 
 
-README ini fokus pada pengaturan lingkungan, dependensi konkret (sesuai `CMakeLists.txt`), dan cara menjalankan proyek pada Linux/macOS. Untuk target embedded, lihat bagian "Toolchain embedded" di bawah.
-
-Ringkasan struktur penting
-
-- `CMakeLists.txt` — konfigurasi build utama. Menemukan SDL2, pkg-config dan GStreamer, lalu menambahkan subdirectory `lib/lvgl/`.
-- `src/main.cpp` — entry point aplikasi.
-- `ui/` — sumber UI (generated or hand-written): `ui.c`, `ui.h`, `ui_events.cpp`.
-- `lib/lvgl/` — sumber LVGL yang disertakan (library, header, utilitas). Periksa `lib/lvgl/lv_conf.h` atau `lib/lvgl/lv_conf_template.h` untuk konfigurasi LVGL.
-- `build/` — direktori build CMake (artefak hasil kompilasi).
-
-Dependensi utama (dipakai di CMakeLists.txt)
-
-- SDL2 (penggunaan desktop backend)
-- pkg-config (digunakan untuk menemukan GStreamer)
-- GStreamer (gstreamer-1.0, gstreamer-app-1.0)
-- CMake, compiler C++
-
-Paket yang direkomendasikan (Debian/Ubuntu)
-
-Instal paket berikut untuk memudahkan build dan menjalankan contoh ini:
-
-```bash
-sudo apt update
-sudo apt install -y build-essential cmake pkg-config git python3 python3-pip \
-	libsdl2-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
-	gstreamer1.0-plugins-good gstreamer1.0-tools libpng-dev libjpeg-dev
-```
-
-- `libsdl2-dev` — header & libs SDL2
-- `libgstreamer1.0-dev`, `libgstreamer-plugins-base1.0-dev` — header & libs GStreamer
-- `gstreamer1.0-plugins-good` dan `gstreamer1.0-tools` — plugin & tools yang sering dibutuhkan untuk pipeline contoh
-
-macOS (Homebrew)
-
-```bash
-brew update
-brew install cmake pkg-config sdl2 gst-plugins-base gst-plugins-good gst-libav
-```
-
-Dependensi opsional: OpenCV
-
-Jika Anda ingin memproses frame kamera menggunakan OpenCV, pasang `libopencv-dev` (Debian) atau `opencv` via Homebrew. Untuk mengaktifkan OpenCV di build, tambahkan di `CMakeLists.txt`:
-
-```cmake
-find_package(OpenCV REQUIRED)
-target_link_libraries(lvgl_kamera PRIVATE ${OpenCV_LIBS})
-```
-
-Lalu rebuild. Pada CMakeLists saat ini ada komentar "Tambahkan ${OpenCV_LIBS} di baris ini" sebagai petunjuk.
-
-Build (quick start)
-
-1. Buat direktori build dan konfigurasikan:
-
-```bash
-cd /path/to/project/root
-mkdir -p build
-cd build
-cmake ..
-```
-
-Jika CMake gagal menemukan SDL2 atau GStreamer, periksa bahwa `pkg-config` telah terpasang dan development package untuk SDL2/GStreamer tersedia.
-
-2. Build:
-
-```bash
-cmake --build . -- -j$(nproc)
-```
-
-Executable yang dihasilkan biasanya bernama `lvglkamera` (lihat `add_executable` di `CMakeLists.txt`). Di workspace sebelumnya ada contoh `UnicornKamera` — pada repo Anda target saat ini adalah `lvglkamera`.
-
-Menjalankan aplikasi
-
-Jika build sukses, jalankan:
-
-```bash
-./build/lvglkamera
-```
-
-Catatan: jalankan dari direktori project root atau `build/` tergantung bagaimana relative asset paths dikelola.
-
-Integrasi LVGL — hal-hal yang perlu diperhatikan
-
-- Konfigurasi LVGL: file `lv_conf.h` mengontrol banyak opsi LVGL (biasanya berada di `lib/lvgl/`). Jika Anda perlu menyesuaikan driver display, font, atau fitur, edit `lib/lvgl/lv_conf.h` atau `lib/lvgl/lv_conf_template.h` sesuai dokumentasi LVGL.
-- `add_subdirectory(lib/lvgl)` di `CMakeLists.txt` akan membangun LVGL sebagai target dan kemudian linked ke `lvglkamera`.
-- UI: folder `ui/` berisi sumber antarmuka. `CMakeLists.txt` sudah mengambil `ui/*.c` & `ui/*.cpp` ke dalam target.
-
-Menambahkan dukungan platform/driver baru
-
-- Desktop (saat ini): backend SDL2 dipakai untuk menampilkan layar LVGL pada jendela desktop.
-- Embedded: gunakan toolchain dan driver display/input spesifik; konfigurasi LVGL dan `lv_conf.h` harus diadaptasi.
-
-Troubleshooting
-
-- CMake tidak menemukan SDL2 atau GStreamer: pastikan `pkg-config` terpasang dan development package (mis. `libsdl2-dev`, `libgstreamer1.0-dev`) terinstall.
-- Linking error terkait LVGL: pastikan subdirektori `lvgl/` dibangun dan target `lvgl` tersedia (CMake output akan menunjukkan targets yang dibuat).
-- GStreamer pipeline errors: jalankan `gst-launch-1.0` atau `gst-inspect-1.0` untuk memverifikasi plugin yang tersedia.
-
-Tips pengembangan
-
-- Edit UI di `ui/` dan implementasikan event di `ui_events.cpp`.
-- Tempatkan logika aplikasi utama di `src/main.cpp`.
-- Jika menambahkan OpenCV atau library lain, pasang package `-dev` yang sesuai dan link dengan CMake.
-
-Realtime system stats (CPU / Memory / GPU)
-
-Proyek sekarang menyertakan tampilan statistik realtime di UI (CPU% dan Memory usage selalu ditampilkan; GPU% akan ditampilkan jika tersedia melalui `nvidia-smi`). Implementasi:
-
-- Sampling CPU/memory: dibaca dari `/proc/stat` dan `/proc/meminfo` (Linux).
-- Sampling GPU: program mencoba memanggil `nvidia-smi` dan membaca `utilization.gpu`; jika tidak ada `nvidia-smi` atau GPU tidak terdeteksi, UI akan menampilkan `GPU: N/A`.
-- Kode terkait: `src/platform_stats.*` (sampling) dan `src/main_stats.cpp` (background sampler + LVGL labels).
-
-Jika Anda ingin mengaktifkan dukungan GPU lain (AMD, vendor khusus), sesuaikan fungsi `read_gpu_via_nvidia_smi()` di `src/platform_stats.cpp` atau tambahkan deteksi/pengambilan data GPU lain.
-
-Contributing
-
-- Buat branch fitur lalu push perubahan. Sertakan deskripsi yang jelas di PR.
-
-Lisensi
-
-Periksa `lib/lvgl/LICENCE.txt` dan file lisensi lain yang menyertai pustaka untuk informasi lisensi lengkap.
+Aplikasi ini mendukung dua mode *build* utama:
+1. **PC Desktop Simulator:** Menggunakan SDL2 untuk *rendering* UI di lingkungan lokal.
+2. **Embedded Linux (Renesas):** Menggunakan DRM/Evdev untuk *rendering* langsung ke layar perangkat keras (arsitektur AArch64).
 
 ---
 
-Jika Anda mau, saya bisa:
+## 📂 Ringkasan Struktur Direktori
 
-- Menambahkan instruksi khusus platform (mis. ESP-IDF / ESP32) dan contoh CMake toolchain file.
-- Menambahkan contoh modifikasi `CMakeLists.txt` untuk mengaktifkan OpenCV secara otomatis saat tersedia.
+- `CMakeLists.txt` — Konfigurasi build utama. Mendeteksi target platform (x86_64 vs AArch64) dan mengatur *linking* library secara otomatis.
+- `src/` — Berisi *entry point* aplikasi (`main_stats.cpp`) dan logika pembacaan statistik perangkat keras (`platform_stats.cpp`).
+- `ui/` — Sumber antarmuka LVGL. Logika pemrosesan Moildev, integrasi GStreamer, dan *event handler* UI berada di `ui_events.cpp`.
+- `lib/lvgl/` — Sumber *library* LVGL. Konfigurasi LVGL dapat diubah melalui `lv_conf.h`.
+- `lib/moil/` — Berisi *precompiled library* Moildev, dipisah berdasarkan arsitektur:
+  - `aarch64/` -> Berisi `libmoildev.so` untuk target Renesas (ARM64).
+  - `x86_64/` -> Berisi `libmoildev.so` untuk PC Simulator.
 
-Beritahu saya fitur mana yang ingin Anda prioritaskan dan saya akan perbarui README lagi.
+---
+
+## 🛠️ Dependensi Utama
+
+Proyek ini membutuhkan pustaka berikut:
+- **LVGL** (Termasuk dalam *source*)
+- **SDL2** (Hanya untuk PC Simulator)
+- **libdrm** (Hanya untuk target Renesas)
+- **GStreamer 1.0** & `gst-plugins-base`
+- **OpenCV 4**
+- **Moildev** (Disediakan internal di `lib/moil/`)
+
+### Instalasi Dependensi PC (Ubuntu/Debian)
+
+Gunakan perintah berikut untuk menginstal seluruh kebutuhan *build* di PC Simulator Anda (x86_64):
+
+```bash
+sudo apt update
+sudo apt install -y build-essential cmake pkg-config git \
+    libsdl2-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
+    gstreamer1.0-plugins-good gstreamer1.0-tools \
+    libopencv-dev
+```
+
+### Instalasi Dependensi Cross-Compile (AArch64 / Renesas)
+
+Jika Anda ingin melakukan *build* untuk board Renesas, Anda harus menginstal *toolchain cross-compile* dan pustaka versi `arm64` di PC Ubuntu host Anda:
+
+```bash
+# Tambahkan arsitektur arm64 ke sistem package manager
+sudo dpkg --add-architecture arm64
+sudo apt update
+
+# Instal compiler dan library target
+sudo apt install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
+    libsdl2-dev:arm64 libgstreamer1.0-dev:arm64 libgstreamer-plugins-base1.0-dev:arm64 \
+    libopencv-dev:arm64 libdrm-dev:arm64
+```
+
+---
+
+## 🚀 Cara Build & Menjalankan
+
+### Opsi 1: Build untuk PC Simulator (x86_64)
+
+Gunakan mode ini untuk menguji UI dan logika Moildev di PC Anda.
+
+```bash
+mkdir -p build && cd build
+cmake ..
+cmake --build . -j$(nproc)
+./lvglkamera
+```
+*Catatan: RPATH telah diatur oleh CMake agar otomatis menemukan `libmoildev.so` di dalam folder `lib/moil/x86_64`.*
+
+### Opsi 2: Build untuk Renesas Embedded (AArch64)
+
+Gunakan script `build.sh` yang telah disediakan untuk mencegah bentrok antara library PC host (x86_64) dan library target (AArch64). Script ini akan mengarahkan `pkg-config` dan CMake untuk murni menggunakan ekosistem ARM64.
+
+```bash
+chmod +x build.sh
+./build.sh
+```
+
+**⚠️ Penting saat Deploy ke Renesas:**
+1. Salin *executable* `lvglkamera` hasil *build* ke board Renesas.
+2. Salin file `lib/moil/aarch64/libmoildev.so` ke folder `/usr/lib` (atau folder library sistem lainnya) di dalam board Renesas Anda agar sistem dapat menemukannya saat aplikasi dijalankan.
+
+---
+
+## 🧠 Fitur Utama
+
+- **Fisheye Dewarping Real-time:** Memanfaatkan library Moildev untuk mengubah gambar *fisheye* menjadi mode **Panorama** atau **Anypoint** secara *real-time*.
+- **Optimasi Resolusi:** Menggunakan resolusi 1600x1200 untuk menjaga keseimbangan antara ketajaman detail kamera dan beban komputasi CPU.
+- **UI Interaktif:** Parameter lensa (Alpha, Beta, Zoom) dapat disesuaikan langsung melalui *slider* LVGL secara instan. Tampilan panel konfigurasi akan menyesuaikan mode yang dipilih secara otomatis.
+- **Hardware Stats Real-time:** Membaca status penggunaan CPU, Memory (RAM), dan GPU (via `nvidia-smi` jika tersedia) secara langsung.
+
+---
+
+## 🔧 Troubleshooting
+
+- **Error: `undefined reference to moildev::...` saat linking**
+  Pastikan `libmoildev.so` sudah berada di direktori arsitektur yang benar (`lib/moil/x86_64` atau `lib/moil/aarch64`) dan sesuai dengan target yang sedang di-*build*.
+- **Error: `cannot open shared object file: No such file or directory` (Di Board Renesas)**
+  Aplikasi tidak menemukan library Moildev. Pastikan Anda sudah memindahkan `libmoildev.so` (versi AArch64) ke direktori library sistem seperti `/usr/lib` pada *board* target Anda.
+- **Kamera tidak muncul (Lag/Freeze)**
+  Periksa *pipeline* GStreamer Anda. Pastikan `/dev/video0` tersedia dan memiliki akses baca/tulis (`sudo chmod 666 /dev/video0`).
