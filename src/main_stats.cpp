@@ -68,7 +68,7 @@ int main(int argc, char **argv) {
         }
     };
 
-    lv_timer_t * t = lv_timer_create((lv_timer_cb_t)stats_timer_cb, 1000, NULL);
+    lv_timer_t * t = lv_timer_create((lv_timer_cb_t)stats_timer_cb, 500, NULL);
 
     // Main Loop
     while(1) {
