@@ -5,6 +5,7 @@ project(lvglkamera C CXX)
 # 0. CROSS-COMPILE ISOLATION (WAJIB UNTUK TARGET EMBEDDED)
 # ==============================================================================
 option(TARGET_RENESAS "Build for Renesas Embedded Linux (DRM/Evdev)" OFF)
+option(V2H "Build specifically for Renesas V2H" OFF) # Menambahkan opsi V2H dari script Anda
 
 if(TARGET_RENESAS)
     # Jangan biarkan CMake mencari program/library di folder host PC (x86_64)
@@ -42,6 +43,9 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/moil)
 if(TARGET_RENESAS)
     message(STATUS "=======================================================")
     message(STATUS "[Unicorn] MENGONFIGURASI BUILD UNTUK RENESAS (AARCH64)")
+    if(V2H)
+        message(STATUS "[Unicorn] Mode V2H Diaktifkan")
+    endif()
     message(STATUS "=======================================================")
     
     add_compile_definitions(TARGET_RENESAS=1)
@@ -87,24 +91,28 @@ add_executable(lvglkamera ${SRC_APP} ${UI_SOURCES})
 # 4. LINKING & DIRECTORIES
 # ==============================================================================
 
-# 1. Tentukan folder library berdasarkan target arsitektur
+# 1. Tentukan folder library dan nama library berdasarkan target arsitektur
 if(TARGET_RENESAS)
-    set(MOIL_LIB_DIR "${CMAKE_CURRENT_SOURCE_DIR}/lib/moil/aarch64")
-    message(STATUS "[Info] Menggunakan library Moildev AArch64 dari: ${MOIL_LIB_DIR}")
+    # Arahkan ke folder 'ren' untuk static library Renesas Anda
+    set(MOIL_LIB_DIR "${CMAKE_CURRENT_SOURCE_DIR}/lib/moil/ren")
+    set(MOIL_LIB_NAME "moildevren") # Mencari libmoildevren.a
+    message(STATUS "[Info] Menggunakan library Static Moildev Renesas dari: ${MOIL_LIB_DIR}")
 else()
+    # Arahkan ke folder x86_64 untuk PC Simulator
     set(MOIL_LIB_DIR "${CMAKE_CURRENT_SOURCE_DIR}/lib/moil/x86_64")
+    set(MOIL_LIB_NAME "moildev") # Mencari libmoildev.so
     message(STATUS "[Info] Menggunakan library Moildev x86_64 dari: ${MOIL_LIB_DIR}")
 endif()
 
 # 2. Cari library moildev di dalam folder yang sudah ditentukan
 find_library(MOILDEV_LIB 
-    NAMES moildev 
+    NAMES ${MOIL_LIB_NAME}
     PATHS ${MOIL_LIB_DIR} 
     NO_DEFAULT_PATH # Paksa CMake mencari hanya di folder spesifik tersebut
 )
 
 if(NOT MOILDEV_LIB)
-    message(FATAL_ERROR "Library Moildev (libmoildev.so) tidak ditemukan di ${MOIL_LIB_DIR}!")
+    message(FATAL_ERROR "Library Moildev (${MOIL_LIB_NAME}) tidak ditemukan di ${MOIL_LIB_DIR}!")
 endif()
 
 # 3. Tautkan library ke aplikasi
@@ -114,12 +122,12 @@ target_link_libraries(lvglkamera
     ${PLATFORM_LIBS} 
     ${GST_LIBRARIES}
     ${OpenCV_LIBS}
-    ${MOILDEV_LIB}  # <--- Tautkan library moildev yang ditemukan
+    ${MOILDEV_LIB}  # <--- Tautkan static/shared library moildev yang ditemukan
     pthread
     dl
 )
 
-# 4. Tentukan direktori Include (Pastikan file .hpp moildev ada di sini)
+# 4. Tentukan direktori Include
 target_include_directories(lvglkamera PRIVATE 
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/ui
@@ -132,7 +140,6 @@ if(NOT TARGET_RENESAS)
     # Untuk PC Simulator (x86_64), izinkan RPATH membaca dari folder lokal agar bisa langsung di-run
     set_target_properties(lvglkamera PROPERTIES BUILD_RPATH "${MOIL_LIB_DIR}")
 else()
-    # Untuk Renesas, hapus rpath lokal agar tidak error "cannot open shared object file"
-    # Pastikan nanti Anda meng-copy libmoildev.so ke /usr/lib di dalam board Renesas Anda.
+    # Untuk Renesas (Static Library .a), RPATH tidak lagi dibutuhkan karena library sudah menyatu.
     set_target_properties(lvglkamera PROPERTIES SKIP_BUILD_RPATH TRUE)
 endif()
