@@ -20,6 +20,36 @@ Aplikasi ini mendukung dua mode *build* utama:
 
 ---
 
+## 🎨 Editor GUI: EEZ Studio
+
+Aplikasi ini didesain menggunakan **EEZ Studio**. Editor ini memungkinkan pengembangan UI LVGL secara visual (drag-and-drop).
+
+### Instalasi EEZ Studio (Linux)
+1. Unduh file AppImage terbaru dari [EEZ Studio GitHub Releases](https://github.com/eez-open/studio/releases).
+2. Berikan izin eksekusi pada file tersebut:
+   ```bash
+   chmod +x EEZ-Studio-x86_64.AppImage
+   ```
+3. Pindahkan ke folder `/opt` (opsional, agar rapi):
+   ```bash
+   sudo mkdir -p /opt/eez-studio
+   sudo mv EEZ-Studio-x86_64.AppImage /opt/eez-studio/eez-studio.AppImage
+   ```
+
+### Menjalankan EEZ Studio dari Terminal
+Agar Anda bisa memanggil `eez-studio` langsung dari direktori mana pun di terminal, buatlah *symbolic link*:
+
+```bash
+sudo ln -s /opt/eez-studio/eez-studio.AppImage /usr/local/bin/eez-studio
+```
+
+Sekarang Anda cukup mengetik perintah ini untuk membuka editor:
+```bash
+eez-studio
+```
+
+---
+
 ## 🛠️ Dependensi Utama
 
 Proyek ini membutuhkan pustaka berikut:
@@ -55,7 +85,6 @@ cmake --build . -j$(nproc)
 Gunakan Yocto SDK Toolchain untuk *cross-compile*. Script `build.sh` akan otomatis mendeteksi lingkungan SDK Anda.
 
 1. **Aktifkan SDK Yocto:**
-   Sesuaikan path dengan lokasi instalasi SDK Anda.
    ```bash
    source /opt/poky/x.y.z/environment-setup-aarch64-poky-linux
    ```
@@ -68,7 +97,7 @@ Gunakan Yocto SDK Toolchain untuk *cross-compile*. Script `build.sh` akan otomat
 
 **⚠️ Penting saat Deploy ke Renesas:**
 1. Salin *executable* `lvglkamera` hasil build ke board.
-2. Salin file `lib/moil/aarch64/libmoildev.so` ke direktori library sistem di board (contoh: `/usr/lib`) agar aplikasi dapat berjalan tanpa error *linkage*.
+2. Salin file `lib/moil/aarch64/libmoildev.so` ke direktori library sistem di board (contoh: `/usr/lib`). Jalankan `ldconfig` di board jika perlu.
 
 ---
 
