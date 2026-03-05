@@ -13,15 +13,18 @@
 #include <gst/gst.h>
 #include <gst/app/gstappsink.h>
 
-// Variabel Global
+// =====================================================================
+// Variabel Global & GStreamer
+// =====================================================================
 bool is_camera_running = false;
 lv_timer_t * camera_timer = NULL;
 
-// GStreamer elements for capture
 static GstElement * gst_pipeline = nullptr;
 static GstElement * gst_appsink = nullptr;
 
-// Image descriptors & buffers
+// =====================================================================
+// Image Descriptors & Buffers
+// =====================================================================
 static lv_image_dsc_t dsc_pano = {0};
 static std::vector<uint16_t> buf_pano;
 static lv_image_dsc_t dsc_any1 = {0};
@@ -38,14 +41,25 @@ static std::vector<uint16_t> buf_moil;
 // Local FPS label
 static lv_obj_t * ui_lbl_fps_local = NULL;
 
-// Moildev Engine & Maps
+// =====================================================================
+// Moildev Engine & Maps (High-Res & Low-Res)
+// =====================================================================
 static moildev::Moildev* moil = nullptr;
 static bool maps_initialized = false;
+
+// Map untuk Layar Utama (1600x1200)
 static cv::Mat mapX_pano, mapY_pano;
 static cv::Mat mapX_any1, mapY_any1;
 static cv::Mat mapX_any2, mapY_any2;
 static cv::Mat mapX_any3, mapY_any3;
 static cv::Mat mapX_any4, mapY_any4;
+
+// Map untuk Thumbnail (320x240) - Rahasia Performa 30FPS Realtime
+static cv::Mat mapX_pano_thumb, mapY_pano_thumb;
+static cv::Mat mapX_any1_thumb, mapY_any1_thumb;
+static cv::Mat mapX_any2_thumb, mapY_any2_thumb;
+static cv::Mat mapX_any3_thumb, mapY_any3_thumb;
+static cv::Mat mapX_any4_thumb, mapY_any4_thumb;
 
 // Variabel Penyimpan Parameter Saat Ini
 // Panorama: alpha -> alpha_max, beta -> alpha_min, zoom -> beta_degree
@@ -54,38 +68,34 @@ static float pano_alpha_max = 110.0f, pano_alpha_min = 0.0f, pano_beta_deg = 0.0
 static float any1_alpha = 5.0f, any1_beta = 0.0f, any1_zoom = 3.0f;
 
 // =====================================================================
-// Fungsi Helper: Generate Map secara Dinamis
+// Fungsi Helper: Generate Map secara Dinamis dengan Target Resolusi
 // =====================================================================
-static void generate_scaled_map(float val1, float val2, float val3, int mode, cv::Mat& outX, cv::Mat& outY) {
+static void generate_scaled_map(float val1, float val2, float val3, int mode, cv::Mat& outX, cv::Mat& outY, float targetW, float targetH) {
     if(!moil) return;
     
     float imgW = 2592.0f, imgH = 1944.0f;
-    float targetW = 1600.0f, targetH = 1200.0f;
+    float src_w = 1600.0f, src_h = 1200.0f;
 
     cv::Mat mX(imgH, imgW, CV_32F);
     cv::Mat mY(imgH, imgW, CV_32F);
 
     if (mode == 0) { 
-        // Anypoint: val1 = alpha, val2 = beta, val3 = zoom
         moil->AnyPointM((float*)mX.data, (float*)mY.data, val1, val2, val3);
     } else { 
-        // Panorama: val1 = alpha_max, val2 = alpha_degree(min), val3 = beta_degree
         moil->PanoramaCar((float*)mX.data, (float*)mY.data, val1, val2, val3, false, false);
     }
 
-    // Scale koordinat map
-    float scale_x = targetW / imgW;
-    float scale_y = targetH / imgH;
-    mX *= scale_x;
-    mY *= scale_y;
+    // Scale koordinat agar menunjuk ke piksel yang benar di raw_frame (1600x1200)
+    mX *= (src_w / imgW);
+    mY *= (src_h / imgH);
 
-    // Resize ukuran map
+    // Resize ukuran grid grid map ke target (Main View atau Thumbnail)
     cv::resize(mX, outX, cv::Size(targetW, targetH));
     cv::resize(mY, outY, cv::Size(targetW, targetH));
 }
 
 // =====================================================================
-// Event Handler: Checkbox Radio Button, Update Slider Range & Tampil/Sembunyikan Config
+// Event Handler: Checkbox Radio Button & UI Config
 // =====================================================================
 static void mode_checkbox_event_cb(lv_event_t * e) {
     lv_obj_t * target = (lv_obj_t *)lv_event_get_target(e);
@@ -99,12 +109,10 @@ static void mode_checkbox_event_cb(lv_event_t * e) {
         if(target == objects.btn_panorama) {
             lv_obj_clear_flag(objects.config, LV_OBJ_FLAG_HIDDEN); // Tampilkan Panel Config
             
-            // Ubah teks label khusus untuk Panorama
             lv_label_set_text(lv_obj_get_child(objects.config, 1), "Alpha Max");
             lv_label_set_text(lv_obj_get_child(objects.config, 3), "Alpha Min");
             lv_label_set_text(lv_obj_get_child(objects.config, 5), "Beta");
 
-            // Range untuk Panorama
             lv_slider_set_range(objects.alpha_conf, 10, 110);
             lv_slider_set_range(objects.beta_conf, 0, 110);
             lv_slider_set_range(objects.zoom_conf, -180, 180);
@@ -116,12 +124,10 @@ static void mode_checkbox_event_cb(lv_event_t * e) {
         else if(target == objects.btn_anypoint) {
             lv_obj_clear_flag(objects.config, LV_OBJ_FLAG_HIDDEN); // Tampilkan Panel Config
             
-            // Kembalikan teks label ke default untuk Anypoint
             lv_label_set_text(lv_obj_get_child(objects.config, 1), "Alpha");
             lv_label_set_text(lv_obj_get_child(objects.config, 3), "Beta");
             lv_label_set_text(lv_obj_get_child(objects.config, 5), "Zoom");
 
-            // Range untuk Anypoint
             lv_slider_set_range(objects.alpha_conf, 0, 110);
             lv_slider_set_range(objects.beta_conf, -180, 180);
             lv_slider_set_range(objects.zoom_conf, 10, 140); 
@@ -134,7 +140,6 @@ static void mode_checkbox_event_cb(lv_event_t * e) {
             lv_obj_add_flag(objects.config, LV_OBJ_FLAG_HIDDEN); // Sembunyikan Panel Config
         }
     } else {
-        // Jika user menghapus centang manual, paksa kembali ke mode Original dan Sembunyikan panel config
         if(target != objects.btn_original) {
             lv_obj_add_state(objects.btn_original, LV_STATE_CHECKED);
             lv_obj_add_flag(objects.config, LV_OBJ_FLAG_HIDDEN); 
@@ -143,7 +148,7 @@ static void mode_checkbox_event_cb(lv_event_t * e) {
 }
 
 // =====================================================================
-// Event Handler: Menangkap Geseran Slider & Langsung Generate Map
+// Event Handler: Geseran Slider (Re-generate High & Low Res Map)
 // =====================================================================
 static void slider_event_cb(lv_event_t * e) {
     if(!maps_initialized) return;
@@ -157,21 +162,23 @@ static void slider_event_cb(lv_event_t * e) {
         pano_alpha_min = (float)beta_val;
         pano_beta_deg  = (float)zoom_val;
         
-        std::cout << "[INFO] Update Map Panorama: A_Max=" << pano_alpha_max << " A_Min=" << pano_alpha_min << " Beta=" << pano_beta_deg << std::endl;
-        generate_scaled_map(pano_alpha_max, pano_alpha_min, pano_beta_deg, 1, mapX_pano, mapY_pano);
+        // Generate High-Res (Main) & Low-Res (Thumb)
+        generate_scaled_map(pano_alpha_max, pano_alpha_min, pano_beta_deg, 1, mapX_pano, mapY_pano, 1600, 1200);
+        generate_scaled_map(pano_alpha_max, pano_alpha_min, pano_beta_deg, 1, mapX_pano_thumb, mapY_pano_thumb, 320, 240);
     } 
     else if(lv_obj_has_state(objects.btn_anypoint, LV_STATE_CHECKED)) {
         any1_alpha = (float)alpha_val;
         any1_beta  = (float)beta_val;
-        any1_zoom  = (float)zoom_val / 10.0f; // Konversi balik ke float
+        any1_zoom  = (float)zoom_val / 10.0f;
         
-        std::cout << "[INFO] Update Map Anypoint 1: Alpha=" << any1_alpha << " Beta=" << any1_beta << " Zoom=" << any1_zoom << std::endl;
-        generate_scaled_map(any1_alpha, any1_beta, any1_zoom, 0, mapX_any1, mapY_any1);
+        // Generate High-Res (Main) & Low-Res (Thumb)
+        generate_scaled_map(any1_alpha, any1_beta, any1_zoom, 0, mapX_any1, mapY_any1, 1600, 1200);
+        generate_scaled_map(any1_alpha, any1_beta, any1_zoom, 0, mapX_any1_thumb, mapY_any1_thumb, 320, 240);
     }
 }
 
 // =====================================================================
-// Inisialisasi Moildev dan Generate Map Awal
+// Inisialisasi Moildev dan Generate Seluruh Map
 // =====================================================================
 void init_moildev_maps() {
     if (maps_initialized) return;
@@ -182,22 +189,29 @@ void init_moildev_maps() {
 
     moil = new moildev::Moildev(sensorW, sensorH, iCx, iCy, ratio, imgW, imgH, calib, p0, p1, p2, p3, p4, p5);
 
-    std::cout << "[INFO] Membuat Maps Moildev (Resolusi Optimasi 1600x1200)..." << std::endl;
-    // Map dinamis: Panorama (A_Max, A_Min, Beta) dan Anypoint 1
-    generate_scaled_map(pano_alpha_max, pano_alpha_min, pano_beta_deg, 1, mapX_pano, mapY_pano);
-    generate_scaled_map(any1_alpha, any1_beta, any1_zoom, 0, mapX_any1, mapY_any1);
+    std::cout << "[INFO] Membuat Maps Moildev (High-Res & Low-Res)..." << std::endl;
     
-    // Map statis: Anypoint 2, 3, 4
-    generate_scaled_map(45.0f, 2.0f, 4.0f, 0, mapX_any2, mapY_any2);
-    generate_scaled_map(40.0f, -175.0f, 4.0f, 0, mapX_any3, mapY_any3);
-    generate_scaled_map(50.0f, -180.0f, 4.5f, 0, mapX_any4, mapY_any4);
+    // 1. Map Layar Utama (1600x1200)
+    generate_scaled_map(pano_alpha_max, pano_alpha_min, pano_beta_deg, 1, mapX_pano, mapY_pano, 1600, 1200);
+    generate_scaled_map(any1_alpha, any1_beta, any1_zoom, 0, mapX_any1, mapY_any1, 1600, 1200);
+    generate_scaled_map(45.0f, 2.0f, 4.0f, 0, mapX_any2, mapY_any2, 1600, 1200);
+    generate_scaled_map(40.0f, -175.0f, 4.0f, 0, mapX_any3, mapY_any3, 1600, 1200);
+    generate_scaled_map(50.0f, -180.0f, 4.5f, 0, mapX_any4, mapY_any4, 1600, 1200);
+
+    // 2. Map Thumbnail (320x240) - Untuk Performa Optimal Renesas
+    int t_w = 320, t_h = 240;
+    generate_scaled_map(pano_alpha_max, pano_alpha_min, pano_beta_deg, 1, mapX_pano_thumb, mapY_pano_thumb, t_w, t_h);
+    generate_scaled_map(any1_alpha, any1_beta, any1_zoom, 0, mapX_any1_thumb, mapY_any1_thumb, t_w, t_h);
+    generate_scaled_map(45.0f, 2.0f, 4.0f, 0, mapX_any2_thumb, mapY_any2_thumb, t_w, t_h);
+    generate_scaled_map(40.0f, -175.0f, 4.0f, 0, mapX_any3_thumb, mapY_any3_thumb, t_w, t_h);
+    generate_scaled_map(50.0f, -180.0f, 4.5f, 0, mapX_any4_thumb, mapY_any4_thumb, t_w, t_h);
     
     maps_initialized = true;
     std::cout << "[INFO] Maps Moildev selesai dibuat." << std::endl;
 }
 
 // =====================================================================
-// Callback Timer (Render Loop)
+// Callback Timer (Render Loop) - OPTIMIZED REALTIME FOR ALL DEVICES
 // =====================================================================
 static void camera_stream_cb(lv_timer_t * timer) {
     if(!is_camera_running || gst_appsink == nullptr) return;
@@ -224,22 +238,8 @@ static void camera_stream_cb(lv_timer_t * timer) {
     }
 
     cv::Mat raw_frame(h, w, CV_8UC3, map.data);
-    cv::Mat frame_pano, frame_any1, frame_any2, frame_any3, frame_any4;
 
-    if(maps_initialized) {
-        cv::remap(raw_frame, frame_pano, mapX_pano, mapY_pano, cv::INTER_LINEAR);
-        cv::remap(raw_frame, frame_any1, mapX_any1, mapY_any1, cv::INTER_LINEAR);
-        cv::remap(raw_frame, frame_any2, mapX_any2, mapY_any2, cv::INTER_LINEAR);
-        cv::remap(raw_frame, frame_any3, mapX_any3, mapY_any3, cv::INTER_LINEAR);
-        cv::remap(raw_frame, frame_any4, mapX_any4, mapY_any4, cv::INTER_LINEAR);
-    } else {
-        raw_frame.copyTo(frame_pano);
-        raw_frame.copyTo(frame_any1);
-        raw_frame.copyTo(frame_any2);
-        raw_frame.copyTo(frame_any3);
-        raw_frame.copyTo(frame_any4);
-    }
-
+    // [OPTIMASI 1] Fungsi Render Cepat OpenCV (SIMD)
     auto render_to_lvgl = [&](const cv::Mat& src, std::vector<uint16_t>& dst_buf, lv_image_dsc_t& dsc, lv_obj_t* widget) {
         if(!widget) return;
         
@@ -248,19 +248,19 @@ static void camera_stream_cb(lv_timer_t * timer) {
         if(tw <= 0 || th <= 0) { tw = 128; th = 128; } 
 
         cv::Mat resized;
-        if(src.cols != tw || src.rows != th) cv::resize(src, resized, cv::Size(tw, th), 0, 0, cv::INTER_LINEAR);
-        else resized = src;
+        if(src.cols != tw || src.rows != th) {
+            cv::resize(src, resized, cv::Size(tw, th), 0, 0, cv::INTER_LINEAR);
+        } else {
+            resized = src;
+        }
+
+        cv::Mat rgb565_mat;
+        cv::cvtColor(resized, rgb565_mat, cv::COLOR_RGB2BGR565);
 
         size_t needed = (size_t)tw * th;
         if(dst_buf.size() != needed) dst_buf.resize(needed, 0);
 
-        const uint8_t* ptr = resized.data;
-        for(size_t i = 0; i < needed; ++i) {
-            uint8_t r = ptr[i*3 + 0];
-            uint8_t g = ptr[i*3 + 1];
-            uint8_t b = ptr[i*3 + 2];
-            dst_buf[i] = (uint16_t)(((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3));
-        }
+        std::memcpy(dst_buf.data(), rgb565_mat.data, needed * sizeof(uint16_t));
 
         dsc.header.magic = LV_IMAGE_HEADER_MAGIC;
         dsc.header.cf = LV_COLOR_FORMAT_RGB565;
@@ -271,29 +271,48 @@ static void camera_stream_cb(lv_timer_t * timer) {
         dsc.data_size = dst_buf.size() * sizeof(uint16_t);
 
         lv_image_set_src(widget, &dsc);
+        lv_obj_invalidate(widget); // LVGL 9 Cache Fix
     };
 
-    // Logika Pemilihan Mode
+    // [OPTIMASI 2] RENDER LAYAR UTAMA (High Resolution)
     cv::Mat mat_moil_target;
     if (lv_obj_has_state(objects.btn_panorama, LV_STATE_CHECKED)) {
-        mat_moil_target = frame_pano;
-    } else if (lv_obj_has_state(objects.btn_anypoint, LV_STATE_CHECKED)) {
-        mat_moil_target = frame_any1; 
-    } else {
+        if(maps_initialized) cv::remap(raw_frame, mat_moil_target, mapX_pano, mapY_pano, cv::INTER_LINEAR);
+        else raw_frame.copyTo(mat_moil_target);
+    } 
+    else if (lv_obj_has_state(objects.btn_anypoint, LV_STATE_CHECKED)) {
+        if(maps_initialized) cv::remap(raw_frame, mat_moil_target, mapX_any1, mapY_any1, cv::INTER_LINEAR);
+        else raw_frame.copyTo(mat_moil_target);
+    } 
+    else {
         mat_moil_target = raw_frame; 
     }
-
     render_to_lvgl(mat_moil_target, buf_moil, dsc_moil, objects.moil_image);
-    render_to_lvgl(frame_pano, buf_pano, dsc_pano, objects.panorama_image);
-    render_to_lvgl(frame_any1, buf_any1, dsc_any1, objects.anypoint_1_image);
-    render_to_lvgl(frame_any2, buf_any2, dsc_any2, objects.anypoint_2_image);
-    render_to_lvgl(frame_any3, buf_any3, dsc_any3, objects.anypoint_3_image);
-    render_to_lvgl(frame_any4, buf_any4, dsc_any4, objects.anypoint_4_image);
+
+    // [OPTIMASI 3] RENDER SEMUA THUMBNAIL REALTIME (Low Resolution Map)
+    if(maps_initialized) {
+        cv::Mat t_pano, t_any1, t_any2, t_any3, t_any4;
+        
+        // Remap menggunakan grid kecil. Cepat di PC, Aman di Renesas!
+        cv::remap(raw_frame, t_pano, mapX_pano_thumb, mapY_pano_thumb, cv::INTER_LINEAR);
+        cv::remap(raw_frame, t_any1, mapX_any1_thumb, mapY_any1_thumb, cv::INTER_LINEAR);
+        cv::remap(raw_frame, t_any2, mapX_any2_thumb, mapY_any2_thumb, cv::INTER_LINEAR);
+        cv::remap(raw_frame, t_any3, mapX_any3_thumb, mapY_any3_thumb, cv::INTER_LINEAR);
+        cv::remap(raw_frame, t_any4, mapX_any4_thumb, mapY_any4_thumb, cv::INTER_LINEAR);
+
+        render_to_lvgl(t_pano, buf_pano, dsc_pano, objects.panorama_image);
+        render_to_lvgl(t_any1, buf_any1, dsc_any1, objects.anypoint_1_image);
+        render_to_lvgl(t_any2, buf_any2, dsc_any2, objects.anypoint_2_image);
+        render_to_lvgl(t_any3, buf_any3, dsc_any3, objects.anypoint_3_image);
+        render_to_lvgl(t_any4, buf_any4, dsc_any4, objects.anypoint_4_image);
+    }
 
     gst_buffer_unmap(buf, &map);
     gst_sample_unref(sample);
 
-    // FPS
+    // ==========================================================
+    // LOGIKA FPS MONITORING
+    // ==========================================================
     static std::chrono::steady_clock::time_point last_tp;
     static double fps_ema = 0.0;
     static bool first = true;
@@ -328,14 +347,12 @@ extern "C" void on_start_kamera_clicked(lv_event_t * e) {
         static bool cb_initialized = false;
         if(!cb_initialized) {
             lv_obj_add_state(objects.btn_original, LV_STATE_CHECKED);
-            lv_obj_add_flag(objects.config, LV_OBJ_FLAG_HIDDEN); // [BARU] Sembunyikan config di awal karena mode default adalah Original
+            lv_obj_add_flag(objects.config, LV_OBJ_FLAG_HIDDEN);
             
-            // Register event untuk checkbox mode
             lv_obj_add_event_cb(objects.btn_original, mode_checkbox_event_cb, LV_EVENT_VALUE_CHANGED, NULL);
             lv_obj_add_event_cb(objects.btn_panorama, mode_checkbox_event_cb, LV_EVENT_VALUE_CHANGED, NULL);
             lv_obj_add_event_cb(objects.btn_anypoint, mode_checkbox_event_cb, LV_EVENT_VALUE_CHANGED, NULL);
             
-            // Event slider merespon secara instan (VALUE_CHANGED) tanpa debounce
             lv_obj_add_event_cb(objects.alpha_conf, slider_event_cb, LV_EVENT_VALUE_CHANGED, NULL);
             lv_obj_add_event_cb(objects.beta_conf, slider_event_cb, LV_EVENT_VALUE_CHANGED, NULL);
             lv_obj_add_event_cb(objects.zoom_conf, slider_event_cb, LV_EVENT_VALUE_CHANGED, NULL);

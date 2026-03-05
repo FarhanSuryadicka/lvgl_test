@@ -74,11 +74,12 @@ static bool read_proc_mem_kb(pid_t pid, long &rss_kb, long &vms_kb) {
     return (rss_kb!=0 || vms_kb!=0);
 }
 
-// Estimate per-process GPU utilization percent by attributing device-wide
-// utilization proportionally to per-process GPU memory usage (heuristic).
-// Returns estimated percent for given pid, or -1 on failure/not available.
 double read_gpu_util_for_pid(pid_t pid){
-    // First, read per-process GPU memory usage via nvidia-smi (pid, used_memory MiB)
+#ifdef TARGET_RENESAS
+    // Board Renesas tidak memiliki nvidia-smi. Langsung kembalikan N/A.
+    return -1.0; 
+#else
+    // Logika nvidia-smi aslinya untuk PC (Ubuntu/Nvidia)
     FILE *p = popen("nvidia-smi --query-compute-apps=pid,used_memory --format=csv,noheader,nounits 2>/dev/null","r");
     if(!p) return -1;
     char buf[256];
@@ -93,12 +94,8 @@ double read_gpu_util_for_pid(pid_t pid){
     }
     pclose(p);
 
-    if(total_mem == 0) {
-        // no process GPU memory found; cannot attribute
-        return -1;
-    }
+    if(total_mem == 0) return -1;
 
-    // Read device-wide GPU utilization (first GPU) as percent
     FILE *q = popen("nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader,nounits 2>/dev/null","r");
     if(!q) return -1;
     double device_util = -1;
@@ -110,10 +107,9 @@ double read_gpu_util_for_pid(pid_t pid){
 
     if(device_util < 0) return -1;
 
-    // Estimate per-process utilization proportional to memory usage
     double frac = (double)my_mem / (double)total_mem;
-    double est = device_util * frac;
-    return est;
+    return device_util * frac;
+#endif
 }
 
 bool read_process_stats(SysStats &s){
