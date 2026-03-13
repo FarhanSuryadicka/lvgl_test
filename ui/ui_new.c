@@ -15,7 +15,7 @@ lv_obj_t * ui_stat_gpu = NULL;
 
 static lv_obj_t *getLvglObjectFromIndex(int32_t index) {
     if (index == -1) {
-        return 0;
+        return NULL;
     }
     return ((lv_obj_t **)&objects)[index];
 }
@@ -23,38 +23,57 @@ static lv_obj_t *getLvglObjectFromIndex(int32_t index) {
 void loadScreen(enum ScreensEnum screenId) {
     currentScreen = screenId - 1;
     lv_obj_t *screen = getLvglObjectFromIndex(currentScreen);
-    lv_scr_load_anim(screen, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);
+    if (screen) {
+        lv_scr_load_anim(screen, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);
+    }
 }
 
 void ui_init() {
     create_screens();
     loadScreen(SCREEN_ID_MAIN_VIEW);
-    /* Attach event handler for the generated "open_camera" button so the
-       existing camera callback (on_start_kamera_clicked) is called when the
-       button is pressed. The callback is defined in ui_events.cpp. */
+
     extern void on_start_kamera_clicked(lv_event_t * e);
-    if(objects.open_camera) {
+    if (objects.open_camera) {
         lv_obj_add_event_cb(objects.open_camera, on_start_kamera_clicked, LV_EVENT_CLICKED, NULL);
     }
 
-    /* Create status labels (CPU / MEM / GPU) inside the sidebar so they
-       appear in the generated layout. These are exposed via externs. */
-    ui_stat_cpu = NULL; ui_stat_mem = NULL; ui_stat_gpu = NULL;
-    if(objects.sidebar) {
-        ui_stat_cpu = lv_label_create(objects.sidebar);
+    /* Status box floating di sidebar */
+    ui_stat_cpu = NULL;
+    ui_stat_mem = NULL;
+    ui_stat_gpu = NULL;
+
+    if (objects.sidebar) {
+        lv_obj_t *stats_box = lv_obj_create(objects.sidebar);
+        lv_obj_add_flag(stats_box, LV_OBJ_FLAG_IGNORE_LAYOUT);
+        lv_obj_set_size(stats_box, 220, 86);
+        lv_obj_align(stats_box, LV_ALIGN_BOTTOM_LEFT, 12, -12);
+        lv_obj_set_style_pad_all(stats_box, 8, LV_PART_MAIN | LV_STATE_DEFAULT);
+        lv_obj_set_style_pad_gap(stats_box, 4, LV_PART_MAIN | LV_STATE_DEFAULT);
+        lv_obj_set_style_radius(stats_box, 8, LV_PART_MAIN | LV_STATE_DEFAULT);
+        lv_obj_set_style_border_width(stats_box, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
+        lv_obj_clear_flag(stats_box, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_move_foreground(stats_box);
+
+        ui_stat_cpu = lv_label_create(stats_box);
         lv_label_set_text(ui_stat_cpu, "CPU: N/A");
-        lv_obj_align(ui_stat_cpu, LV_ALIGN_TOP_LEFT, 8, 8);
+        lv_obj_align(ui_stat_cpu, LV_ALIGN_TOP_LEFT, 0, 0);
 
-        ui_stat_mem = lv_label_create(objects.sidebar);
+        ui_stat_mem = lv_label_create(stats_box);
         lv_label_set_text(ui_stat_mem, "MEM: N/A");
-        lv_obj_align(ui_stat_mem, LV_ALIGN_TOP_LEFT, 8, 32);
+        lv_obj_align(ui_stat_mem, LV_ALIGN_TOP_LEFT, 0, 24);
 
-        ui_stat_gpu = lv_label_create(objects.sidebar);
+        ui_stat_gpu = lv_label_create(stats_box);
         lv_label_set_text(ui_stat_gpu, "GPU: N/A");
-        lv_obj_align(ui_stat_gpu, LV_ALIGN_TOP_LEFT, 8, 56);
+        lv_obj_align(ui_stat_gpu, LV_ALIGN_TOP_LEFT, 0, 48);
+    }
+
+    if (objects.main_view) {
+        lv_obj_update_layout(objects.main_view);
     }
 }
 
 void ui_tick() {
-    tick_screen(currentScreen);
+    if (currentScreen >= 0) {
+        tick_screen(currentScreen);
+    }
 }

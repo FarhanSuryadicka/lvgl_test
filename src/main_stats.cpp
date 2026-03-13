@@ -28,7 +28,7 @@ int main(int argc, char **argv) {
 #else
     std::cout << "[INFO] Menjalankan mode PC Simulator (SDL2)..." << std::endl;
     
-    disp = (lv_obj_t*)lv_sdl_window_create(1280, 720);
+    disp = (lv_obj_t*)lv_sdl_window_create(1920, 1080);
     indev = (lv_indev_t*)lv_sdl_mouse_create();
 #endif
 

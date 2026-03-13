@@ -1,13 +1,16 @@
 #include "ui_new.h"
 #include "screens.h"
 #include "lvgl/lvgl.h"
+#include "utils/shader_render.hpp"
+
 #include <iostream>
 #include <vector>
 #include <chrono>
 #include <cstdio>
 #include <algorithm>
+#include <cstring>
+
 #include <opencv2/opencv.hpp>
-#include "moil/moildev.hpp"
 
 /* GStreamer capture (appsink) */
 #include <gst/gst.h>
@@ -23,18 +26,29 @@ static GstElement * gst_pipeline = nullptr;
 static GstElement * gst_appsink = nullptr;
 
 // =====================================================================
+// Shader Engine Instance
+// =====================================================================
+ShaderRenderer gpuShader;
+bool shader_ready = false;
+
+// =====================================================================
 // Image Descriptors & Buffers
 // =====================================================================
 static lv_image_dsc_t dsc_pano = {0};
 static std::vector<uint16_t> buf_pano;
+
 static lv_image_dsc_t dsc_any1 = {0};
 static std::vector<uint16_t> buf_any1;
+
 static lv_image_dsc_t dsc_any2 = {0};
 static std::vector<uint16_t> buf_any2;
+
 static lv_image_dsc_t dsc_any3 = {0};
 static std::vector<uint16_t> buf_any3;
+
 static lv_image_dsc_t dsc_any4 = {0};
 static std::vector<uint16_t> buf_any4;
+
 static lv_image_dsc_t dsc_moil = {0};
 static std::vector<uint16_t> buf_moil;
 
@@ -42,49 +56,31 @@ static std::vector<uint16_t> buf_moil;
 static lv_obj_t * ui_lbl_fps_local = NULL;
 
 // =====================================================================
-// Moildev Engine & Maps (High-Res & Low-Res)
-// =====================================================================
-static moildev::Moildev* moil = nullptr;
-static bool maps_initialized = false;
-
-// Map untuk Layar Utama (1600x1200)
-static cv::Mat mapX_pano, mapY_pano;
-static cv::Mat mapX_any1, mapY_any1;
-static cv::Mat mapX_any2, mapY_any2;
-static cv::Mat mapX_any3, mapY_any3;
-static cv::Mat mapX_any4, mapY_any4;
-
 // Variabel Penyimpan Parameter Saat Ini
-// Panorama: alpha -> alpha_max, beta -> alpha_min, zoom -> beta_degree
-static float pano_alpha_max = 110.0f, pano_alpha_min = 0.0f, pano_beta_deg = 0.0f;
-// Anypoint: Tetap alpha, beta, zoom
-static float any1_alpha = 5.0f, any1_beta = 0.0f, any1_zoom = 3.0f;
+// =====================================================================
+// Panorama: alpha_conf -> alpha_max, beta_conf -> alpha_min, zoom_conf -> beta_degree
+static float pano_alpha_max = 110.0f;
+static float pano_alpha_min = 0.0f;
+static float pano_beta_deg  = 0.0f;
+
+// Anypoint
+static float any1_alpha = 5.0f;
+static float any1_beta  = 0.0f;
+static float any1_zoom  = 3.0f;
 
 // =====================================================================
-// Fungsi Helper: Generate Map secara Dinamis dengan Target Resolusi
+// Helper ukuran widget aktual
 // =====================================================================
-static void generate_scaled_map(float val1, float val2, float val3, int mode, cv::Mat& outX, cv::Mat& outY, float targetW, float targetH) {
-    if(!moil) return;
-    
-    float imgW = 2592.0f, imgH = 1944.0f;
-    float src_w = 1600.0f, src_h = 1200.0f;
+static inline int obj_w(lv_obj_t *obj, int fallback) {
+    if(!obj) return fallback;
+    int w = lv_obj_get_content_width(obj);
+    return (w > 0) ? w : fallback;
+}
 
-    cv::Mat mX(imgH, imgW, CV_32F);
-    cv::Mat mY(imgH, imgW, CV_32F);
-
-    if (mode == 0) { 
-        moil->AnyPointM((float*)mX.data, (float*)mY.data, val1, val2, val3);
-    } else { 
-        moil->PanoramaCar((float*)mX.data, (float*)mY.data, val1, val2, val3, false, false);
-    }
-
-    // Scale koordinat agar menunjuk ke piksel yang benar di raw_frame (1600x1200)
-    mX *= (src_w / imgW);
-    mY *= (src_h / imgH);
-
-    // Resize ukuran map agar sama persis dengan ukuran Widget di layar
-    cv::resize(mX, outX, cv::Size(targetW, targetH));
-    cv::resize(mY, outY, cv::Size(targetW, targetH));
+static inline int obj_h(lv_obj_t *obj, int fallback) {
+    if(!obj) return fallback;
+    int h = lv_obj_get_content_height(obj);
+    return (h > 0) ? h : fallback;
 }
 
 // =====================================================================
@@ -92,16 +88,19 @@ static void generate_scaled_map(float val1, float val2, float val3, int mode, cv
 // =====================================================================
 static void mode_checkbox_event_cb(lv_event_t * e) {
     lv_obj_t * target = (lv_obj_t *)lv_event_get_target(e);
-    
+    if(!target) return;
+
     if(lv_obj_has_state(target, LV_STATE_CHECKED)) {
         // Hilangkan centang mode lain
-        if(target != objects.btn_original) lv_obj_remove_state(objects.btn_original, LV_STATE_CHECKED);
-        if(target != objects.btn_panorama) lv_obj_remove_state(objects.btn_panorama, LV_STATE_CHECKED);
-        if(target != objects.btn_anypoint) lv_obj_remove_state(objects.btn_anypoint, LV_STATE_CHECKED);
-        
+        if(target != objects.btn_original)  lv_obj_remove_state(objects.btn_original, LV_STATE_CHECKED);
+        if(target != objects.btn_panorama)  lv_obj_remove_state(objects.btn_panorama, LV_STATE_CHECKED);
+        if(target != objects.btn_anypoint)  lv_obj_remove_state(objects.btn_anypoint, LV_STATE_CHECKED);
+
         if(target == objects.btn_panorama) {
-            lv_obj_clear_flag(objects.config, LV_OBJ_FLAG_HIDDEN); // Tampilkan Panel Config
-            
+            lv_obj_clear_flag(objects.config, LV_OBJ_FLAG_HIDDEN);
+
+            // Tetap sesuai struktur child config yang saya susun sebelumnya:
+            // 0 title, 1 label1, 2 slider1, 3 label2, 4 slider2, 5 label3, 6 slider3
             lv_label_set_text(lv_obj_get_child(objects.config, 1), "Alpha Max");
             lv_label_set_text(lv_obj_get_child(objects.config, 3), "Alpha");
             lv_label_set_text(lv_obj_get_child(objects.config, 5), "Beta");
@@ -109,42 +108,43 @@ static void mode_checkbox_event_cb(lv_event_t * e) {
             lv_slider_set_range(objects.alpha_conf, 10, 110);
             lv_slider_set_range(objects.beta_conf, 0, 110);
             lv_slider_set_range(objects.zoom_conf, -180, 180);
-            
+
             lv_slider_set_value(objects.alpha_conf, (int)pano_alpha_max, LV_ANIM_OFF);
             lv_slider_set_value(objects.beta_conf, (int)pano_alpha_min, LV_ANIM_OFF);
             lv_slider_set_value(objects.zoom_conf, (int)pano_beta_deg, LV_ANIM_OFF);
-        } 
+        }
         else if(target == objects.btn_anypoint) {
-            lv_obj_clear_flag(objects.config, LV_OBJ_FLAG_HIDDEN); // Tampilkan Panel Config
-            
+            lv_obj_clear_flag(objects.config, LV_OBJ_FLAG_HIDDEN);
+
             lv_label_set_text(lv_obj_get_child(objects.config, 1), "Alpha");
             lv_label_set_text(lv_obj_get_child(objects.config, 3), "Beta");
             lv_label_set_text(lv_obj_get_child(objects.config, 5), "Zoom");
 
             lv_slider_set_range(objects.alpha_conf, 0, 110);
             lv_slider_set_range(objects.beta_conf, -180, 180);
-            lv_slider_set_range(objects.zoom_conf, 10, 140); 
-            
+            lv_slider_set_range(objects.zoom_conf, 10, 140);
+
             lv_slider_set_value(objects.alpha_conf, (int)any1_alpha, LV_ANIM_OFF);
             lv_slider_set_value(objects.beta_conf, (int)any1_beta, LV_ANIM_OFF);
-            lv_slider_set_value(objects.zoom_conf, (int)(any1_zoom * 10), LV_ANIM_OFF);
+            lv_slider_set_value(objects.zoom_conf, (int)(any1_zoom * 10.0f), LV_ANIM_OFF);
         }
         else if(target == objects.btn_original) {
-            lv_obj_add_flag(objects.config, LV_OBJ_FLAG_HIDDEN); // Sembunyikan Panel Config
+            lv_obj_add_flag(objects.config, LV_OBJ_FLAG_HIDDEN);
         }
-    } else {
+    }
+    else {
         if(target != objects.btn_original) {
             lv_obj_add_state(objects.btn_original, LV_STATE_CHECKED);
-            lv_obj_add_flag(objects.config, LV_OBJ_FLAG_HIDDEN); 
+            lv_obj_add_flag(objects.config, LV_OBJ_FLAG_HIDDEN);
         }
     }
 }
 
 // =====================================================================
-// Event Handler: Geseran Slider (Re-generate Map secara Instan)
+// Event Handler: Geseran Slider
 // =====================================================================
 static void slider_event_cb(lv_event_t * e) {
-    if(!maps_initialized) return;
+    LV_UNUSED(e);
 
     int alpha_val = lv_slider_get_value(objects.alpha_conf);
     int beta_val  = lv_slider_get_value(objects.beta_conf);
@@ -154,67 +154,58 @@ static void slider_event_cb(lv_event_t * e) {
         pano_alpha_max = (float)alpha_val;
         pano_alpha_min = (float)beta_val;
         pano_beta_deg  = (float)zoom_val;
-        
-        // Regenerate Map Panorama dengan ukuran presisi widget (960x432)
-        generate_scaled_map(pano_alpha_max, pano_alpha_min, pano_beta_deg, 1, mapX_pano, mapY_pano, 960, 432);
-    } 
+    }
     else if(lv_obj_has_state(objects.btn_anypoint, LV_STATE_CHECKED)) {
         any1_alpha = (float)alpha_val;
         any1_beta  = (float)beta_val;
         any1_zoom  = (float)zoom_val / 10.0f;
-        
-        // Regenerate Map Anypoint 1 dengan ukuran presisi widget (240x200)
-        generate_scaled_map(any1_alpha, any1_beta, any1_zoom, 0, mapX_any1, mapY_any1, 240, 200);
     }
 }
 
 // =====================================================================
-// Inisialisasi Moildev dan Generate Seluruh Map 1:1 Pixel
+// Helper: Assign Buffer ke LVGL Image
 // =====================================================================
-void init_moildev_maps() {
-    if (maps_initialized) return;
+static void update_lvgl_image(lv_obj_t* widget,
+                              lv_image_dsc_t& dsc,
+                              std::vector<uint16_t>& buf,
+                              int w,
+                              int h) {
+    if(!widget || w <= 0 || h <= 0 || buf.empty()) return;
 
-    float sensorW = 1.0f, sensorH = 1.0f;
-    float iCx = 1238.0f, iCy = 987.0f, ratio = 1.0f, imgW = 2592.0f, imgH = 1944.0f, calib = 1.0f;
-    float p0 = 0.0f, p1 = 0.0f, p2 = -32.973f, p3 = 67.825f, p4 = -41.581f, p5 = 504.7f;
+    dsc.header.magic  = LV_IMAGE_HEADER_MAGIC;
+    dsc.header.cf     = LV_COLOR_FORMAT_RGB565;
+    dsc.header.w      = w;
+    dsc.header.h      = h;
+    dsc.header.stride = w * (int)sizeof(uint16_t);
+    dsc.data          = reinterpret_cast<const uint8_t*>(buf.data());
+    dsc.data_size     = buf.size() * sizeof(uint16_t);
 
-    moil = new moildev::Moildev(sensorW, sensorH, iCx, iCy, ratio, imgW, imgH, calib, p0, p1, p2, p3, p4, p5);
-
-    std::cout << "[INFO] Membuat Maps Moildev (1:1 Pixel Mapping)..." << std::endl;
-    
-    // 1. Map Panorama (Ukuran Layar 75% Lebar, 60% Tinggi dari panel utama) -> ~960x432
-    int p_w = 960, p_h = 432;
-    generate_scaled_map(pano_alpha_max, pano_alpha_min, pano_beta_deg, 1, mapX_pano, mapY_pano, p_w, p_h);
-
-    // 2. Map Anypoint (Thumbnail bawah, sekitar 240x200)
-    int a_w = 240, a_h = 200;
-    generate_scaled_map(any1_alpha, any1_beta, any1_zoom, 0, mapX_any1, mapY_any1, a_w, a_h);
-    generate_scaled_map(45.0f, 2.0f, 4.0f, 0, mapX_any2, mapY_any2, a_w, a_h);
-    generate_scaled_map(40.0f, -175.0f, 4.0f, 0, mapX_any3, mapY_any3, a_w, a_h);
-    generate_scaled_map(50.0f, -180.0f, 4.5f, 0, mapX_any4, mapY_any4, a_w, a_h);
-    
-    maps_initialized = true;
-    std::cout << "[INFO] Maps Moildev selesai dibuat." << std::endl;
+    lv_image_set_src(widget, &dsc);
+    lv_obj_invalidate(widget);
 }
 
 // =====================================================================
-// Callback Timer (Render Loop) - OPTIMIZED REALTIME FOR ALL DEVICES
+// Callback Timer (Render Loop GPU Shader)
 // =====================================================================
 static void camera_stream_cb(lv_timer_t * timer) {
+    LV_UNUSED(timer);
+
     if(!is_camera_running || gst_appsink == nullptr) return;
 
     GstSample * sample = gst_app_sink_try_pull_sample(GST_APP_SINK(gst_appsink), 10000000);
     if(!sample) return;
 
     GstBuffer * buf = gst_sample_get_buffer(sample);
-    GstCaps * caps = gst_sample_get_caps(sample);
+    GstCaps   * caps = gst_sample_get_caps(sample);
+
     if(!buf || !caps) {
-        if(sample) gst_sample_unref(sample);
+        gst_sample_unref(sample);
         return;
     }
 
     GstStructure * str = gst_caps_get_structure(caps, 0);
-    int w = 1600, h = 1200;
+    int w = 1600;
+    int h = 1200;
     gst_structure_get_int(str, "width", &w);
     gst_structure_get_int(str, "height", &h);
 
@@ -226,85 +217,85 @@ static void camera_stream_cb(lv_timer_t * timer) {
 
     cv::Mat raw_frame(h, w, CV_8UC3, map.data);
 
-    // [OPTIMASI 1] Fungsi Render Cepat OpenCV (SIMD)
-    auto render_to_lvgl = [&](const cv::Mat& src, std::vector<uint16_t>& dst_buf, lv_image_dsc_t& dsc, lv_obj_t* widget) {
-        if(!widget) return;
-        
-        int tw = lv_obj_get_width(widget);
-        int th = lv_obj_get_height(widget);
-        if(tw <= 0 || th <= 0) { tw = 128; th = 128; } 
+    // Ambil ukuran widget aktual dari layout 1920x1080
+    const int pano_w = obj_w(objects.panorama_image, 1536);
+    const int pano_h = obj_h(objects.panorama_image, 550);
 
-        cv::Mat resized;
-        if(src.cols != tw || src.rows != th) {
-            int interpolation = (src.cols > tw) ? cv::INTER_AREA : cv::INTER_CUBIC;
-            cv::resize(src, resized, cv::Size(tw, th), 0, 0, interpolation);
-        } else {
-            resized = src;
+    const int any_w  = obj_w(objects.anypoint_1_image, 382);
+    const int any_h  = obj_h(objects.anypoint_1_image, 340);
+
+    const int moil_w = obj_w(objects.moil_image, 336);
+    const int moil_h = obj_h(objects.moil_image, 220);
+
+    if(shader_ready) {
+        // 1. Panorama
+        gpuShader.render(raw_frame, pano_w, pano_h, 2.0f,
+                         pano_alpha_max, pano_alpha_min, pano_beta_deg, pano_alpha_max,
+                         buf_pano);
+        update_lvgl_image(objects.panorama_image, dsc_pano, buf_pano, pano_w, pano_h);
+
+        // 2. Anypoint 1
+        gpuShader.render(raw_frame, any_w, any_h, 0.0f,
+                         any1_alpha, any1_beta, any1_zoom, 0.0f,
+                         buf_any1);
+        update_lvgl_image(objects.anypoint_1_image, dsc_any1, buf_any1, any_w, any_h);
+
+        // 3. Anypoint 2
+        gpuShader.render(raw_frame, any_w, any_h, 0.0f,
+                         45.0f, 2.0f, 4.0f, 0.0f,
+                         buf_any2);
+        update_lvgl_image(objects.anypoint_2_image, dsc_any2, buf_any2, any_w, any_h);
+
+        // 4. Anypoint 3
+        gpuShader.render(raw_frame, any_w, any_h, 0.0f,
+                         40.0f, -175.0f, 4.0f, 0.0f,
+                         buf_any3);
+        update_lvgl_image(objects.anypoint_3_image, dsc_any3, buf_any3, any_w, any_h);
+
+        // 5. Anypoint 4
+        gpuShader.render(raw_frame, any_w, any_h, 0.0f,
+                         50.0f, -180.0f, 4.5f, 0.0f,
+                         buf_any4);
+        update_lvgl_image(objects.anypoint_4_image, dsc_any4, buf_any4, any_w, any_h);
+
+        // 6. Sidebar preview (moil_image)
+        if(lv_obj_has_state(objects.btn_panorama, LV_STATE_CHECKED)) {
+            gpuShader.render(raw_frame, moil_w, moil_h, 2.0f,
+                             pano_alpha_max, pano_alpha_min, pano_beta_deg, pano_alpha_max,
+                             buf_moil);
+        }
+        else if(lv_obj_has_state(objects.btn_anypoint, LV_STATE_CHECKED)) {
+            gpuShader.render(raw_frame, moil_w, moil_h, 0.0f,
+                             any1_alpha, any1_beta, any1_zoom, 0.0f,
+                             buf_moil);
+        }
+        else {
+            // Original Mode - resize ringan via OpenCV
+            cv::Mat resized_moil, rgb565_moil;
+            cv::resize(raw_frame, resized_moil, cv::Size(moil_w, moil_h), 0, 0, cv::INTER_AREA);
+            cv::cvtColor(resized_moil, rgb565_moil, cv::COLOR_RGB2BGR565);
+
+            const size_t needed = (size_t)moil_w * (size_t)moil_h;
+            if(buf_moil.size() != needed) {
+                buf_moil.resize(needed);
+            }
+
+            std::memcpy(buf_moil.data(), rgb565_moil.data, needed * sizeof(uint16_t));
         }
 
-        cv::Mat rgb565_mat;
-        cv::cvtColor(resized, rgb565_mat, cv::COLOR_RGB2BGR565);
-
-        size_t needed = (size_t)tw * th;
-        if(dst_buf.size() != needed) dst_buf.resize(needed, 0);
-
-        std::memcpy(dst_buf.data(), rgb565_mat.data, needed * sizeof(uint16_t));
-
-        dsc.header.magic = LV_IMAGE_HEADER_MAGIC;
-        dsc.header.cf = LV_COLOR_FORMAT_RGB565;
-        dsc.header.w = tw;
-        dsc.header.h = th;
-        dsc.header.stride = tw * sizeof(uint16_t);
-        dsc.data = reinterpret_cast<const uint8_t*>(dst_buf.data());
-        dsc.data_size = dst_buf.size() * sizeof(uint16_t);
-
-        lv_image_set_src(widget, &dsc);
-        lv_obj_invalidate(widget); // LVGL 9 Cache Fix
-    };
-
-    // Matriks untuk menyimpan hasil remap
-    cv::Mat f_pano, f_any1, f_any2, f_any3, f_any4;
-
-    // [OPTIMASI 2] RENDER PANORAMA & ANYPOINT (1:1 Pixel Mapping)
-    if(maps_initialized) {
-        cv::remap(raw_frame, f_pano, mapX_pano, mapY_pano, cv::INTER_LINEAR);
-        cv::remap(raw_frame, f_any1, mapX_any1, mapY_any1, cv::INTER_LINEAR);
-        cv::remap(raw_frame, f_any2, mapX_any2, mapY_any2, cv::INTER_LINEAR);
-        cv::remap(raw_frame, f_any3, mapX_any3, mapY_any3, cv::INTER_LINEAR);
-        cv::remap(raw_frame, f_any4, mapX_any4, mapY_any4, cv::INTER_LINEAR);
-
-        render_to_lvgl(f_pano, buf_pano, dsc_pano, objects.panorama_image);
-        render_to_lvgl(f_any1, buf_any1, dsc_any1, objects.anypoint_1_image);
-        render_to_lvgl(f_any2, buf_any2, dsc_any2, objects.anypoint_2_image);
-        render_to_lvgl(f_any3, buf_any3, dsc_any3, objects.anypoint_3_image);
-        render_to_lvgl(f_any4, buf_any4, dsc_any4, objects.anypoint_4_image);
+        update_lvgl_image(objects.moil_image, dsc_moil, buf_moil, moil_w, moil_h);
     }
-
-    // [OPTIMASI 3] KEMBALIKAN LOGIKA MOIL IMAGE (Sidebar berubah sesuai Checkbox!)
-    cv::Mat mat_moil_target;
-    if (lv_obj_has_state(objects.btn_panorama, LV_STATE_CHECKED) && maps_initialized) {
-        mat_moil_target = f_pano; // Tampilkan versi Panorama di Sidebar
-    } 
-    else if (lv_obj_has_state(objects.btn_anypoint, LV_STATE_CHECKED) && maps_initialized) {
-        mat_moil_target = f_any1; // Tampilkan versi Anypoint di Sidebar
-    } 
-    else {
-        mat_moil_target = raw_frame; // Mode Original Fisheye
-    }
-    
-    // Render ke sidebar.
-    // Jika gambar terlalu besar, akan otomatis di-resize (INTER_AREA) agar sangat jernih!
-    render_to_lvgl(mat_moil_target, buf_moil, dsc_moil, objects.moil_image);
 
     gst_buffer_unmap(buf, &map);
     gst_sample_unref(sample);
 
     // ==========================================================
-    // LOGIKA FPS MONITORING
+    // FPS MONITORING
     // ==========================================================
     static std::chrono::steady_clock::time_point last_tp;
     static double fps_ema = 0.0;
     static bool first = true;
+
     auto now = std::chrono::steady_clock::now();
     if(!first) {
         std::chrono::duration<double> dt = now - last_tp;
@@ -316,12 +307,15 @@ static void camera_stream_cb(lv_timer_t * timer) {
             lv_obj_align(ui_lbl_fps_local, LV_ALIGN_TOP_RIGHT, -10, 10);
             lv_obj_move_foreground(ui_lbl_fps_local);
         }
+
         char fps_str[32];
         std::snprintf(fps_str, sizeof(fps_str), "FPS: %.1f", fps_ema);
         lv_label_set_text(ui_lbl_fps_local, fps_str);
-    } else {
+    }
+    else {
         first = false;
     }
+
     last_tp = now;
 }
 
@@ -330,22 +324,34 @@ static void camera_stream_cb(lv_timer_t * timer) {
 // =====================================================================
 extern "C" void on_start_kamera_clicked(lv_event_t * e) {
     if(!is_camera_running) {
-        
-        init_moildev_maps();
-        
+        // Pastikan layout sudah fix sebelum ambil ukuran widget
+        if(objects.main_view) {
+            lv_obj_update_layout(objects.main_view);
+        }
+
+        // Inisialisasi Shader GPU dari file .frag
+        if(!shader_ready) {
+            std::cout << "[INFO] Menginisialisasi GPU Shader..." << std::endl;
+            shader_ready = gpuShader.init("moil/anypoint_gl.frag");
+            if(!shader_ready) {
+                std::cerr << "ERROR: Gagal init shader renderer" << std::endl;
+                return;
+            }
+        }
+
         static bool cb_initialized = false;
         if(!cb_initialized) {
             lv_obj_add_state(objects.btn_original, LV_STATE_CHECKED);
             lv_obj_add_flag(objects.config, LV_OBJ_FLAG_HIDDEN);
-            
+
             lv_obj_add_event_cb(objects.btn_original, mode_checkbox_event_cb, LV_EVENT_VALUE_CHANGED, NULL);
             lv_obj_add_event_cb(objects.btn_panorama, mode_checkbox_event_cb, LV_EVENT_VALUE_CHANGED, NULL);
             lv_obj_add_event_cb(objects.btn_anypoint, mode_checkbox_event_cb, LV_EVENT_VALUE_CHANGED, NULL);
-            
+
             lv_obj_add_event_cb(objects.alpha_conf, slider_event_cb, LV_EVENT_VALUE_CHANGED, NULL);
             lv_obj_add_event_cb(objects.beta_conf, slider_event_cb, LV_EVENT_VALUE_CHANGED, NULL);
             lv_obj_add_event_cb(objects.zoom_conf, slider_event_cb, LV_EVENT_VALUE_CHANGED, NULL);
-            
+
             cb_initialized = true;
         }
 
@@ -353,59 +359,92 @@ extern "C" void on_start_kamera_clicked(lv_event_t * e) {
 
         const char * pipeline_desc =
             "v4l2src device=/dev/video0 ! videoconvert ! videoscale ! "
-            "video/x-raw,format=RGB,width=1600,height=1200 ! appsink name=appsink max-buffers=1 drop=true sync=false";
+            "video/x-raw,format=RGB,width=1600,height=1200 ! "
+            "appsink name=appsink max-buffers=1 drop=true sync=false";
 
         GError * err = nullptr;
         gst_pipeline = gst_parse_launch(pipeline_desc, &err);
         if(!gst_pipeline || err) {
-            std::cerr << "ERROR: Failed to create GStreamer pipeline: " << (err ? err->message : "unknown") << std::endl;
+            std::cerr << "ERROR: Failed to create GStreamer pipeline: "
+                      << (err ? err->message : "unknown") << std::endl;
             if(err) g_error_free(err);
             return;
         }
 
         gst_appsink = gst_bin_get_by_name(GST_BIN(gst_pipeline), "appsink");
-        g_object_set(gst_appsink, "emit-signals", FALSE, "sync", FALSE, "max-buffers", 1, "drop", TRUE, NULL);
+        if(!gst_appsink) {
+            std::cerr << "ERROR: Failed to get appsink from pipeline" << std::endl;
+            gst_object_unref(gst_pipeline);
+            gst_pipeline = nullptr;
+            return;
+        }
+
+        g_object_set(gst_appsink,
+                     "emit-signals", FALSE,
+                     "sync", FALSE,
+                     "max-buffers", 1,
+                     "drop", TRUE,
+                     NULL);
 
         GstStateChangeReturn sres = gst_element_set_state(gst_pipeline, GST_STATE_PLAYING);
         if(sres == GST_STATE_CHANGE_FAILURE) {
             std::cerr << "ERROR: Failed to set pipeline to PLAYING" << std::endl;
+            if(gst_appsink) {
+                gst_object_unref(gst_appsink);
+                gst_appsink = nullptr;
+            }
+            if(gst_pipeline) {
+                gst_object_unref(gst_pipeline);
+                gst_pipeline = nullptr;
+            }
             return;
         }
 
         is_camera_running = true;
 
         lv_obj_t * btn = (lv_obj_t *)lv_event_get_target(e);
-        lv_obj_t * label = lv_obj_get_child(btn, 0);
-        if(label) lv_label_set_text(label, "Stop Kamera");
+        lv_obj_t * label = btn ? lv_obj_get_child(btn, 0) : NULL;
+        if(label) {
+            lv_label_set_text(label, "Stop Kamera");
+        }
 
         if(camera_timer == NULL) {
             camera_timer = lv_timer_create(camera_stream_cb, 33, NULL);
-        } else {
+        }
+        else {
             lv_timer_resume(camera_timer);
         }
-
-    } else {
+    }
+    else {
         is_camera_running = false;
 
         if(gst_pipeline) {
             gst_element_set_state(gst_pipeline, GST_STATE_NULL);
-            if(gst_appsink) gst_object_unref(gst_appsink);
+
+            if(gst_appsink) {
+                gst_object_unref(gst_appsink);
+                gst_appsink = nullptr;
+            }
+
             gst_object_unref(gst_pipeline);
             gst_pipeline = nullptr;
-            gst_appsink = nullptr;
         }
 
-        if(camera_timer != NULL) lv_timer_pause(camera_timer);
+        if(camera_timer != NULL) {
+            lv_timer_pause(camera_timer);
+        }
 
-        if(objects.moil_image) lv_image_set_src(objects.moil_image, NULL);
-        if(objects.panorama_image) lv_image_set_src(objects.panorama_image, NULL);
+        if(objects.moil_image)       lv_image_set_src(objects.moil_image, NULL);
+        if(objects.panorama_image)   lv_image_set_src(objects.panorama_image, NULL);
         if(objects.anypoint_1_image) lv_image_set_src(objects.anypoint_1_image, NULL);
         if(objects.anypoint_2_image) lv_image_set_src(objects.anypoint_2_image, NULL);
         if(objects.anypoint_3_image) lv_image_set_src(objects.anypoint_3_image, NULL);
         if(objects.anypoint_4_image) lv_image_set_src(objects.anypoint_4_image, NULL);
 
         lv_obj_t * btn = (lv_obj_t *)lv_event_get_target(e);
-        lv_obj_t * label = lv_obj_get_child(btn, 0);
-        if(label) lv_label_set_text(label, "Mulai Kamera");
+        lv_obj_t * label = btn ? lv_obj_get_child(btn, 0) : NULL;
+        if(label) {
+            lv_label_set_text(label, "Open Camera");
+        }
     }
 }

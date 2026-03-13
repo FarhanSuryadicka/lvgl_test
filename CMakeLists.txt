@@ -5,7 +5,7 @@ project(lvglkamera C CXX)
 # 0. CROSS-COMPILE ISOLATION (WAJIB UNTUK TARGET EMBEDDED)
 # ==============================================================================
 option(TARGET_RENESAS "Build for Renesas Embedded Linux (DRM/Evdev)" OFF)
-option(V2H "Build specifically for Renesas V2H" OFF) # Menambahkan opsi V2H dari script Anda
+option(V2H "Build specifically for Renesas V2H" OFF) 
 
 if(TARGET_RENESAS)
     # Jangan biarkan CMake mencari program/library di folder host PC (x86_64)
@@ -23,7 +23,7 @@ set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # ==============================================================================
-# 1. PENCARIAN LIBRARY GLOBAL (GStreamer)
+# 1. PENCARIAN LIBRARY GLOBAL (GStreamer & OpenCV)
 # ==============================================================================
 find_package(PkgConfig REQUIRED)
 
@@ -38,7 +38,7 @@ include_directories(${OpenCV_INCLUDE_DIRS})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/moil)
 
 # ==============================================================================
-# 2. KONFIGURASI KHUSUS PLATFORM
+# 2. KONFIGURASI KHUSUS PLATFORM & OPENGL (SHADER)
 # ==============================================================================
 if(TARGET_RENESAS)
     message(STATUS "=======================================================")
@@ -54,16 +54,26 @@ if(TARGET_RENESAS)
     pkg_check_modules(DRM REQUIRED libdrm)
     include_directories(${DRM_INCLUDE_DIRS})
     
-    set(PLATFORM_LIBS ${DRM_LIBRARIES})
+    # Cari library OpenGL ES untuk Shader di Embedded
+    pkg_check_modules(GLES REQUIRED glesv2)
+    include_directories(${GLES_INCLUDE_DIRS})
+    
+    set(PLATFORM_LIBS ${DRM_LIBRARIES} ${GLES_LIBRARIES})
 else()
     message(STATUS "=======================================================")
     message(STATUS "[Unicorn] MENGONFIGURASI BUILD UNTUK PC SIMULATOR (SDL2)")
     message(STATUS "=======================================================")
     
+    # Cari SDL2
     find_package(SDL2 REQUIRED)
     include_directories(${SDL2_INCLUDE_DIRS})
     
-    set(PLATFORM_LIBS ${SDL2_LIBRARIES})
+    # Cari OpenGL dan GLEW untuk Shader di PC
+    find_package(OpenGL REQUIRED)
+    pkg_check_modules(GLEW REQUIRED glew)
+    include_directories(${OpenGL_INCLUDE_DIRS} ${GLEW_INCLUDE_DIRS})
+    
+    set(PLATFORM_LIBS ${SDL2_LIBRARIES} ${OpenGL_LIBRARIES} ${GLEW_LIBRARIES})
 endif()
 
 # ==============================================================================
@@ -82,7 +92,12 @@ foreach(_f ${UI_ALL})
     endif()
 endforeach()
 
-set(SRC_APP src/main_stats.cpp src/platform_stats.cpp)
+# Pastikan ui_events.cpp dan shader_render.cpp masuk ke dalam SRC_APP
+set(SRC_APP 
+    src/main_stats.cpp 
+    src/platform_stats.cpp 
+    utils/shader_render.cpp
+)
 
 # Buat executable
 add_executable(lvglkamera ${SRC_APP} ${UI_SOURCES})
@@ -132,7 +147,8 @@ target_include_directories(lvglkamera PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/ui
     ${CMAKE_CURRENT_SOURCE_DIR}/lib
-    ${CMAKE_CURRENT_SOURCE_DIR}/lib/moil # Sesuaikan jika moildev.hpp ada di dalam lib/moil
+    ${CMAKE_CURRENT_SOURCE_DIR}/lib/moil
+    ${CMAKE_CURRENT_SOURCE_DIR}/utils
 )
 
 # 5. Atur RPATH dengan aman
