@@ -8,7 +8,7 @@
 
 static int16_t currentScreen = -1;
 
-/* Definitions for status labels (defined here so they have storage) */
+/* Definitions for status labels */
 lv_obj_t * ui_stat_cpu = NULL;
 lv_obj_t * ui_stat_mem = NULL;
 lv_obj_t * ui_stat_gpu = NULL;
@@ -33,41 +33,35 @@ void ui_init() {
     loadScreen(SCREEN_ID_MAIN_VIEW);
 
     extern void on_start_kamera_clicked(lv_event_t * e);
-    if (objects.open_camera) {
+    if(objects.open_camera) {
         lv_obj_add_event_cb(objects.open_camera, on_start_kamera_clicked, LV_EVENT_CLICKED, NULL);
     }
 
-    /* Status box floating di sidebar */
     ui_stat_cpu = NULL;
     ui_stat_mem = NULL;
     ui_stat_gpu = NULL;
 
-    if (objects.sidebar) {
-        lv_obj_t *stats_box = lv_obj_create(objects.sidebar);
-        lv_obj_add_flag(stats_box, LV_OBJ_FLAG_IGNORE_LAYOUT);
-        lv_obj_set_size(stats_box, 220, 86);
-        lv_obj_align(stats_box, LV_ALIGN_BOTTOM_LEFT, 12, -12);
-        lv_obj_set_style_pad_all(stats_box, 8, LV_PART_MAIN | LV_STATE_DEFAULT);
-        lv_obj_set_style_pad_gap(stats_box, 4, LV_PART_MAIN | LV_STATE_DEFAULT);
-        lv_obj_set_style_radius(stats_box, 8, LV_PART_MAIN | LV_STATE_DEFAULT);
-        lv_obj_set_style_border_width(stats_box, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
-        lv_obj_clear_flag(stats_box, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_move_foreground(stats_box);
-
-        ui_stat_cpu = lv_label_create(stats_box);
+    if(objects.sidebar && objects.config) {
+        ui_stat_cpu = lv_label_create(objects.sidebar);
+        lv_obj_add_flag(ui_stat_cpu, LV_OBJ_FLAG_IGNORE_LAYOUT);
         lv_label_set_text(ui_stat_cpu, "CPU: N/A");
-        lv_obj_align(ui_stat_cpu, LV_ALIGN_TOP_LEFT, 0, 0);
+        lv_obj_align_to(ui_stat_cpu, objects.config, LV_ALIGN_OUT_BOTTOM_LEFT, 12, 16);
+        lv_obj_move_foreground(ui_stat_cpu);
 
-        ui_stat_mem = lv_label_create(stats_box);
+        ui_stat_mem = lv_label_create(objects.sidebar);
+        lv_obj_add_flag(ui_stat_mem, LV_OBJ_FLAG_IGNORE_LAYOUT);
         lv_label_set_text(ui_stat_mem, "MEM: N/A");
-        lv_obj_align(ui_stat_mem, LV_ALIGN_TOP_LEFT, 0, 24);
+        lv_obj_align_to(ui_stat_mem, ui_stat_cpu, LV_ALIGN_OUT_BOTTOM_LEFT, 0, 4);
+        lv_obj_move_foreground(ui_stat_mem);
 
-        ui_stat_gpu = lv_label_create(stats_box);
+        ui_stat_gpu = lv_label_create(objects.sidebar);
+        lv_obj_add_flag(ui_stat_gpu, LV_OBJ_FLAG_IGNORE_LAYOUT);
         lv_label_set_text(ui_stat_gpu, "GPU: N/A");
-        lv_obj_align(ui_stat_gpu, LV_ALIGN_TOP_LEFT, 0, 48);
+        lv_obj_align_to(ui_stat_gpu, ui_stat_mem, LV_ALIGN_OUT_BOTTOM_LEFT, 0, 4);
+        lv_obj_move_foreground(ui_stat_gpu);
     }
 
-    if (objects.main_view) {
+    if(objects.main_view) {
         lv_obj_update_layout(objects.main_view);
     }
 }
